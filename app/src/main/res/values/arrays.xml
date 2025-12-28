@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="financial_advice">
+        <item>Track your spending to see where your money goes.</item>
+        <item>Create a budget and stick to it.</item>
+        <item>Set financial goals to motivate yourself.</item>
+        <item>Save for emergencies to avoid debt.</item>
+        <item>Pay off high-interest debt as quickly as possible.</item>
+        <item>Invest in your future by saving for retirement.</item>
+        <item>Look for ways to increase your income.</item>
+        <item>Review your finances regularly.</item>
+        <item>Don\'t be afraid to ask for help from a financial advisor.</item>
+    </string-array>
+</resources>
