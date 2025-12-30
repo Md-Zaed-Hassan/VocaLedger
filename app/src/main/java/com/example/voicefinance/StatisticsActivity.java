@@ -10,7 +10,7 @@ import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LiveData;
-import androidx.lifecycle.Observer;
+//import androidx.lifecycle.Observer;
 
 import com.example.voicefinance.databinding.ActivityStatisticsBinding;
 import com.github.mikephil.charting.animation.Easing;
@@ -95,9 +95,7 @@ public class StatisticsActivity extends AppCompatActivity {
     }
 
     private void setupTimePeriodSelector() {
-        binding.toggleGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            observeDataForPeriod(checkedId);
-        });
+        binding.toggleGroup.setOnCheckedChangeListener((group, checkedId) -> observeDataForPeriod(checkedId));
 
         // Load data for the initial selection
         observeDataForPeriod(binding.toggleGroup.getCheckedRadioButtonId());
@@ -105,6 +103,7 @@ public class StatisticsActivity extends AppCompatActivity {
 
     private void observeDataForPeriod(int checkedId) {
         long startTime = getStartTimeForPeriod(checkedId);
+        //long endTime = System.currentTimeMillis();
         LiveData<List<TransactionDao.CategoryTotal>> liveData = db.transactionDao().getExpenseTotalsByCategorySince(startTime);
 
         String title;
@@ -121,7 +120,7 @@ public class StatisticsActivity extends AppCompatActivity {
             if (categoryTotals != null && !categoryTotals.isEmpty()) {
                 loadPieChartData(categoryTotals);
             } else {
-                binding.pieChart.setData(new PieData(new PieDataSet(new ArrayList<PieEntry>(), "")));
+                binding.pieChart.setData(new PieData(new PieDataSet(new ArrayList<>(), "")));
                 binding.pieChart.setCenterText(generateCenterSpannableText(0.0));
 
                 // --- THEME-AWARE TEXT COLOR ---

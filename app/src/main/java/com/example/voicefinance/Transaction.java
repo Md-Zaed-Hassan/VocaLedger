@@ -1,7 +1,11 @@
 package com.example.voicefinance;
 
+import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import androidx.room.TypeConverters;
+
+import org.jetbrains.annotations.Nullable;
 
 @Entity(tableName = "transactions")
 public class Transaction {
@@ -13,14 +17,24 @@ public class Transaction {
     public double amount;
     public long timestamp;
 
-    // --- NEW FIELD ---
-    public String category; // This adds the new column to our database
+    @ColumnInfo(name = "created_at")
+    public long createdAt;
 
-    // --- UPDATED CONSTRUCTOR ---
-    public Transaction(String label, double amount, long timestamp, String category) {
+    @ColumnInfo(name = "updated_at")
+    @Nullable
+    public Long updatedAt;
+
+    public String category;
+
+    @TypeConverters(Converters.class)
+    public TransactionType type;
+
+    public Transaction(String label, double amount, long timestamp, String category, TransactionType type) {
         this.label = label;
         this.amount = amount;
         this.timestamp = timestamp;
-        this.category = category; // Set the new category
+        this.createdAt = System.currentTimeMillis();
+        this.category = category;
+        this.type = type;
     }
 }

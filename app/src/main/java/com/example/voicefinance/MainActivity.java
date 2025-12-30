@@ -3,8 +3,7 @@ package com.example.voicefinance;
 import android.Manifest;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.content.Context;
-import android.content.Intent;
+import android.content.Context;import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -191,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             speechRecognizerLauncher.launch(intent);
         } catch (Exception e) {
-            showToast("Your device doesn\'t support speech recognition.");
+            showToast("Your device doesn\\'t support speech recognition.");
         }
     }
 
@@ -347,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
             amount = amount * -1;
         }
 
-        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label));
+        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label, isExpense ? TransactionType.EXPENSE : TransactionType.INCOME));
 
         binding.editTextAmount.setText("");
         binding.editTextLabel.setText("");
@@ -357,7 +356,7 @@ public class MainActivity extends AppCompatActivity {
         if (isExpense) {
             amount = amount * -1;
         }
-        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label));
+        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label, isExpense ? TransactionType.EXPENSE : TransactionType.INCOME));
     }
 
     private void saveTransaction(Transaction transaction) {
