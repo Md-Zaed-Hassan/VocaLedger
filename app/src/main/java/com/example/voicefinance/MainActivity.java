@@ -33,11 +33,16 @@ import java.util.Locale;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.Calendar;
+
 
 public class MainActivity extends AppCompatActivity {
 
     private ActivityMainBinding binding;
     private AppDatabase db;
+
+    private String currentYear;
+    private String currentMonth;
 
     private ActivityResultLauncher<String> requestPermissionLauncher;
     private ActivityResultLauncher<Intent> speechRecognizerLauncher;
@@ -57,6 +62,10 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(binding.toolbar);
 
         db = AppDatabase.getDatabase(this);
+        Calendar cal = Calendar.getInstance();
+        currentYear = String.valueOf(cal.get(Calendar.YEAR));
+        currentMonth = String.format("%02d", cal.get(Calendar.MONTH) + 1);
+        observeMonthlySummary();
         registerLaunchers();
         setupListeners();
         observeData();
@@ -373,4 +382,36 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         });
     }
+    private void observeMonthlySummary() {
+
+        db.transactionDao()
+                .getMonthlyIncome(currentYear, currentMonth)
+                .observe(this, income -> updateMonthlyDashboard());
+
+        db.transactionDao()
+                .getMonthlyExpense(currentYear, currentMonth)
+                .observe(this, expense -> updateMonthlyDashboard());
+    }
+
+    private void updateMonthlyDashboard() {
+
+        db.transactionDao()
+                .getMonthlyIncome(currentYear, currentMonth)
+                .observe(this, income -> {
+
+                    db.transactionDao()
+                            .getMonthlyExpense(currentYear, currentMonth)
+                            .observe(this, expense -> {
+
+                                double totalIncome = income != null ? income : 0.0;
+                                double totalExpense = expense != null ? expense : 0.0;
+                                double balance = totalIncome + totalExpense;
+
+                                binding.incomeAmount.setText(formatCurrency(totalIncome));
+                                binding.expenseAmount.setText(formatCurrency(totalExpense));
+                                binding.balanceAmount.setText(formatCurrency(balance));
+                            });
+                });
+    }
+
 }

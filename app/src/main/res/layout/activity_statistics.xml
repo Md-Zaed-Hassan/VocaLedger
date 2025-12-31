@@ -8,6 +8,7 @@
     android:fitsSystemWindows="true"
     tools:context=".StatisticsActivity">
 
+    <!-- App Bar -->
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
@@ -25,6 +26,7 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
+    <!-- Period Toggle -->
     <RadioGroup
         android:id="@+id/toggle_group"
         android:layout_width="match_parent"
@@ -47,7 +49,7 @@
             android:layout_weight="1"
             android:layout_height="wrap_content"
             android:text="Monthly"
-            android:checked="true"/>
+            android:checked="true" />
 
         <RadioButton
             android:id="@+id/radio_yearly"
@@ -57,23 +59,42 @@
             android:text="Yearly" />
     </RadioGroup>
 
+    <!-- Chart Title -->
     <TextView
         android:id="@+id/chart_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_below="@id/toggle_group"
         android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
         android:text="Monthly Expense Breakdown"
         android:textSize="18sp"
         android:textStyle="bold" />
 
+    <!-- Year Selector -->
+    <Spinner
+        android:id="@+id/yearSpinner"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/chart_title"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="8dp"
+        android:minHeight="48dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:spinnerMode="dropdown" />
+
+
+    <!-- Pie Chart -->
     <com.github.mikephil.charting.charts.PieChart
         android:id="@+id/pie_chart"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/chart_title"
+        android:layout_below="@id/yearSpinner"
+        android:layout_above="@id/total_expenses_text"
         android:layout_margin="16dp" />
 
+    <!-- Total Expenses -->
     <TextView
         android:id="@+id/total_expenses_text"
         android:layout_width="wrap_content"
