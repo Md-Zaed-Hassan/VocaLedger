@@ -9,4 +9,16 @@
         app:showAsAction="ifRoom"
         app:iconTint="?attr/colorOnPrimary" />
 
+    <item
+        android:id="@+id/action_set_budget"
+        android:title="Set Monthly Budget"
+        app:showAsAction="never" />
+    <item
+        android:id="@+id/action_history"
+        android:title="History"
+        android:icon="@drawable/ic_history"
+        app:showAsAction="never" />
+
+
+
 </menu>

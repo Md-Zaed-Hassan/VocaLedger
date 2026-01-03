@@ -21,6 +21,11 @@
             android:name=".StatisticsActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false" />
+
+
         <!-- This is your Main Activity (the first screen) -->
         <activity
             android:name=".MainActivity"
@@ -31,6 +36,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".CategoryDetailActivity" />
+
     </application>
 
 </manifest>

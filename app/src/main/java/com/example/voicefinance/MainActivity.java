@@ -16,7 +16,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
 import android.widget.Toast;
-
+import android.widget.EditText;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -69,6 +69,7 @@ public class MainActivity extends AppCompatActivity {
         registerLaunchers();
         setupListeners();
         observeData();
+        observeMonthlyBudget();
     }
 
     @Override
@@ -79,12 +80,33 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == R.id.action_change_theme) {
+
+        int id = item.getItemId();
+
+        // History screen (Phase F.1)
+        // Opens full transaction list
+        if (id == R.id.action_history) {
+            startActivity(
+                    new Intent(this, HistoryActivity.class)
+            );
+            return true;
+        }
+
+        // Theme selection (Light / Dark / System)
+        if (id == R.id.action_change_theme) {
             showThemeChoiceDialog();
             return true;
         }
+        // Monthly budget (optional feature)
+        if (id == R.id.action_set_budget) {
+            showSetBudgetDialog();
+            return true;
+        }
+
         return super.onOptionsItemSelected(item);
     }
+
+
 
     private void showThemeChoiceDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -377,11 +399,31 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void showSetBudgetDialog() {
+        EditText input = new EditText(this);
+        input.setHint("Enter monthly budget");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Set Monthly Budget (Optional)")
+                .setView(input)
+                .setPositiveButton("Save", (d, w) -> {
+                    try {
+                        double value = Double.parseDouble(input.getText().toString());
+                        BudgetHelper.setMonthlyBudget(this, value);
+                        observeMonthlyBudget();
+                    } catch (Exception ignored) {}
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
     private void showToast(String message) {
         runOnUiThread(() -> {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         });
     }
+
+
     private void observeMonthlySummary() {
 
         db.transactionDao()
@@ -413,5 +455,42 @@ public class MainActivity extends AppCompatActivity {
                             });
                 });
     }
+
+    private void observeMonthlyBudget() {
+
+        double budget = BudgetHelper.getMonthlyBudget(this);
+
+        // FEATURE IS OPTIONAL — HARD EXIT
+        if (budget <= 0) {
+            binding.budgetStatusText.setVisibility(View.GONE);
+            return;
+        }
+
+        binding.budgetStatusText.setVisibility(View.VISIBLE);
+
+        db.transactionDao()
+                .getCurrentMonthExpense()
+                .observe(this, expense -> {
+
+                    if (expense == null) return;
+
+                    double spent = Math.abs(expense);
+                    double percent = (spent / budget) * 100;
+
+                    if (percent >= 100) {
+                        binding.budgetStatusText.setText("⚠ Budget exceeded!");
+                    } else if (percent >= 80) {
+                        binding.budgetStatusText.setText("⚠ 80% of budget used");
+                    } else if (percent >= 50) {
+                        binding.budgetStatusText.setText("ℹ 50% of budget used");
+                    } else {
+                        binding.budgetStatusText.setText(
+                                "Budget usage: " + String.format(Locale.getDefault(), "%.0f%%", percent)
+
+                        );
+                    }
+                });
+    }
+
 
 }

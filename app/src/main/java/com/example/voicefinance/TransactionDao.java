@@ -4,6 +4,8 @@ import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
 import androidx.room.Insert;
 import androidx.room.Query;
+import androidx.room.Delete;
+import androidx.room.Update; // ✅ REQUIRED for edit support
 
 import java.util.List;
 
@@ -11,15 +13,28 @@ import java.util.List;
 public interface TransactionDao {
 
     /* ---------------------------------------------------
-     * BASIC OPERATIONS
+     * BASIC CRUD
      * --------------------------------------------------- */
 
     // Insert a new transaction (used by MainActivity)
     @Insert
     void insert(Transaction transaction);
 
+    // ✅ REQUIRED: Update an existing transaction (Phase F – Edit)
+    @Update
+    void update(Transaction transaction);
+
+    // Delete a transaction (Phase F – Delete)
+    @Delete
+    void delete(Transaction transaction);
+
+
+    /* ---------------------------------------------------
+     * DASHBOARD / HISTORY
+     * --------------------------------------------------- */
+
     // Fetch all transactions ordered by creation time
-    // Used for dashboard balance calculation
+    // Used by dashboard + history screen
     @Query("SELECT * FROM transactions ORDER BY created_at DESC")
     LiveData<List<Transaction>> getAllTransactions();
 
@@ -28,9 +43,8 @@ public interface TransactionDao {
      * LEGACY ANALYTICS (RELATIVE TIME)
      * --------------------------------------------------- */
 
-    // Existing method used by your StatisticsActivity
-    // This supports the old "last N days/months/year" logic
-    // We KEEP this for backward compatibility
+    // Backward-compatible analytics
+    // Used by existing StatisticsActivity logic
     @Query(
             "SELECT category, SUM(amount) AS total " +
                     "FROM transactions " +
@@ -41,11 +55,10 @@ public interface TransactionDao {
 
 
     /* ---------------------------------------------------
-     * CALENDAR-CORRECT ANALYTICS (NEW – PHASE 2)
+     * CALENDAR-CORRECT ANALYTICS (PHASE E / E2)
      * --------------------------------------------------- */
 
     // YEARLY expense breakdown by category
-    // Used when user selects "Yearly" + a specific year
     @Query(
             "SELECT category, SUM(amount) AS total " +
                     "FROM transactions " +
@@ -55,9 +68,7 @@ public interface TransactionDao {
     )
     LiveData<List<CategoryTotal>> getYearlyExpenseByCategory(String year);
 
-
-    // MONTHLY expense breakdown by category (under a selected year)
-    // Used when user selects "Monthly" + a year
+    // MONTHLY expense breakdown by category
     @Query(
             "SELECT category, SUM(amount) AS total " +
                     "FROM transactions " +
@@ -71,9 +82,7 @@ public interface TransactionDao {
             String month
     );
 
-
-    // DAILY expense breakdown by category
-    // Always uses the current day (no year/month needed)
+    // DAILY expense breakdown (current day)
     @Query(
             "SELECT category, SUM(amount) AS total " +
                     "FROM transactions " +
@@ -85,14 +94,8 @@ public interface TransactionDao {
 
 
     /* ---------------------------------------------------
-     * RESULT HOLDER (USED BY MPAndroidChart)
+     * MONTHLY SUMMARY (BUDGET + DASHBOARD)
      * --------------------------------------------------- */
-
-    // Simple POJO for chart aggregation
-    class CategoryTotal {
-        public String category;
-        public double total;
-    }
 
     // Total income for a given month
     @Query(
@@ -103,7 +106,6 @@ public interface TransactionDao {
     )
     LiveData<Double> getMonthlyIncome(String year, String month);
 
-
     // Total expense for a given month
     @Query(
             "SELECT IFNULL(SUM(amount), 0) FROM transactions " +
@@ -113,7 +115,22 @@ public interface TransactionDao {
     )
     LiveData<Double> getMonthlyExpense(String year, String month);
 
-    // Fetch transactions for a specific category within a month/year
+    // Total expense for CURRENT month (budget warning)
+    @Query(
+            "SELECT IFNULL(SUM(amount), 0) " +
+                    "FROM transactions " +
+                    "WHERE amount < 0 " +
+                    "AND strftime('%Y-%m', timestamp / 1000, 'unixepoch') = " +
+                    "      strftime('%Y-%m', 'now')"
+    )
+    LiveData<Double> getCurrentMonthExpense();
+
+
+    /* ---------------------------------------------------
+     * CATEGORY DRILL-DOWN (PHASE E)
+     * --------------------------------------------------- */
+
+    // Transactions for a category within a month/year
     @Query(
             "SELECT * FROM transactions " +
                     "WHERE category = :category " +
@@ -128,4 +145,14 @@ public interface TransactionDao {
             String month
     );
 
+
+    /* ---------------------------------------------------
+     * RESULT HOLDER (MPAndroidChart)
+     * --------------------------------------------------- */
+
+    // Simple POJO for aggregated results
+    class CategoryTotal {
+        public String category;
+        public double total;
+    }
 }

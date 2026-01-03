@@ -154,6 +154,18 @@
                                 android:text="$0.00"
                                 android:textColor="?attr/colorNegative"
                                 android:textSize="20sp" />
+                            <TextView
+                                android:id="@+id/budgetStatusText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                android:textColor="?attr/colorError"
+                                android:visibility="gone"
+                                tools:text="⚠ 80% of budget used" />
+
+
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
@@ -267,6 +279,7 @@
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="16dp"
         android:src="@android:drawable/ic_btn_speak_now"
+        android:contentDescription="Add transaction using voice"
         app:backgroundTint="?attr/colorSecondary"
         app:elevation="6dp"
         app:tint="?attr/colorOnSecondary" />

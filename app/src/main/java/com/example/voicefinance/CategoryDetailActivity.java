@@ -2,46 +2,86 @@ package com.example.voicefinance;
 
 import android.os.Bundle;
 
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.voicefinance.databinding.ActivityCategoryDetailBinding;
+import com.google.android.material.appbar.MaterialToolbar;
 
 public class CategoryDetailActivity extends AppCompatActivity {
 
-    private ActivityCategoryDetailBinding binding;
     private AppDatabase db;
+    private RecyclerView recyclerView;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(@Nullable Bundle savedInstanceState) {
+
         ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_category_detail);
 
-        binding = ActivityCategoryDetailBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
+        // -------------------------------
+        // Toolbar setup (REQUIRED)
+        // -------------------------------
+        MaterialToolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
 
-        setSupportActionBar(binding.toolbar);
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
 
-        db = AppDatabase.getDatabase(this);
-
+        // -------------------------------
+        // Read intent data safely
+        // -------------------------------
         String category = getIntent().getStringExtra("category");
         String year = getIntent().getStringExtra("year");
         String month = getIntent().getStringExtra("month");
 
-        binding.categoryTitle.setText(category);
+        // Defensive fallback (prevents crash)
+        if (category == null || year == null || month == null) {
+            finish();
+            return;
+        }
 
-        db.transactionDao()
-                .getTransactionsByCategoryAndMonth(category, year, month)
-                .observe(this, transactions -> {
-                    binding.recyclerView.setAdapter(
-                            new TransactionAdapter(transactions)
-                    );
-                });
+        // -------------------------------
+        // RecyclerView setup
+        // -------------------------------
+        recyclerView = findViewById(R.id.recyclerView);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        // -------------------------------
+        // Database
+        // -------------------------------
+        db = AppDatabase.getDatabase(this);
+
+        observeCategoryData(category, year, month);
     }
 
+    // -------------------------------
+    // Back navigation
+    // -------------------------------
     @Override
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    // -------------------------------
+    // Observe category transactions
+    // -------------------------------
+    private void observeCategoryData(String category, String year, String month) {
+
+        db.transactionDao()
+                .getTransactionsByCategoryAndMonth(category, year, month)
+                .observe(this, transactions -> {
+
+                    // 🔒 CRASH PREVENTION
+                    if (transactions == null) return;
+
+                    TransactionAdapter adapter =
+                            new TransactionAdapter(transactions, null);
+                    recyclerView.setAdapter(adapter);
+                });
     }
 }

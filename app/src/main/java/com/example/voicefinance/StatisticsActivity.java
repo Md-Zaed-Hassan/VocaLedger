@@ -1,13 +1,14 @@
 package com.example.voicefinance;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.SpannableString;
 import android.text.style.RelativeSizeSpan;
 import android.text.style.StyleSpan;
 import android.util.TypedValue;
-import android.view.View;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LiveData;
@@ -33,7 +34,6 @@ public class StatisticsActivity extends AppCompatActivity {
     private ActivityStatisticsBinding binding;
     private AppDatabase db;
 
-    // ✅ REQUIRED FOR PHASE E (Category Drill-Down)
     private String selectedYear;
     private String selectedMonth;
 
@@ -53,7 +53,6 @@ public class StatisticsActivity extends AppCompatActivity {
 
         db = AppDatabase.getDatabase(this);
 
-        // ✅ Initialize current month/year safely
         updateSelectedMonthYear();
 
         setupPieChart();
@@ -61,19 +60,24 @@ public class StatisticsActivity extends AppCompatActivity {
         setupChartClick();
     }
 
-    // -------------------------------
+    // --------------------------------------------------
     // Navigation
-    // -------------------------------
+    // --------------------------------------------------
     @Override
     public boolean onSupportNavigateUp() {
-        onBackPressed(); // Deprecated but safe here
+        finish();
         return true;
     }
 
-    // -------------------------------
+    // --------------------------------------------------
     // Pie Chart Setup
-    // -------------------------------
+    // --------------------------------------------------
     private void setupPieChart() {
+
+        boolean isDark =
+                (getResources().getConfiguration().uiMode
+                        & Configuration.UI_MODE_NIGHT_MASK)
+                        == Configuration.UI_MODE_NIGHT_YES;
 
         binding.pieChart.setUsePercentValues(true);
         binding.pieChart.getDescription().setEnabled(false);
@@ -81,7 +85,12 @@ public class StatisticsActivity extends AppCompatActivity {
         binding.pieChart.setDragDecelerationFrictionCoef(0.95f);
 
         binding.pieChart.setDrawHoleEnabled(true);
-        binding.pieChart.setHoleColor(Color.TRANSPARENT);
+
+        // ✅ FIX: Theme-aware hole color (THIS solves your issue)
+        binding.pieChart.setHoleColor(
+                isDark ? Color.parseColor("#1E1E1E") : Color.parseColor("#F2F2F2")
+        );
+
         binding.pieChart.setHoleRadius(58f);
         binding.pieChart.setTransparentCircleRadius(61f);
         binding.pieChart.setDrawCenterText(true);
@@ -91,16 +100,12 @@ public class StatisticsActivity extends AppCompatActivity {
         binding.pieChart.setDrawEntryLabels(false);
         binding.pieChart.getLegend().setEnabled(false);
 
-        CustomMarkerView markerView =
-                new CustomMarkerView(this, R.layout.marker_view);
-        binding.pieChart.setMarker(markerView);
-
-        binding.pieChart.animateY(1400, Easing.EaseInOutQuad);
+        binding.pieChart.animateY(1200, Easing.EaseInOutQuad);
     }
 
-    // -------------------------------
-    // Tap → Category Drill-Down
-    // -------------------------------
+    // --------------------------------------------------
+    // Chart Click → Category Details
+    // --------------------------------------------------
     private void setupChartClick() {
 
         binding.pieChart.setOnChartValueSelectedListener(
@@ -108,19 +113,15 @@ public class StatisticsActivity extends AppCompatActivity {
 
                     @Override
                     public void onValueSelected(Entry e, Highlight h) {
-
                         if (!(e instanceof PieEntry)) return;
-
-                        String category = ((PieEntry) e).getLabel();
 
                         Intent intent = new Intent(
                                 StatisticsActivity.this,
                                 CategoryDetailActivity.class
                         );
-                        intent.putExtra("category", category);
+                        intent.putExtra("category", ((PieEntry) e).getLabel());
                         intent.putExtra("year", selectedYear);
                         intent.putExtra("month", selectedMonth);
-
                         startActivity(intent);
                     }
 
@@ -130,9 +131,9 @@ public class StatisticsActivity extends AppCompatActivity {
         );
     }
 
-    // -------------------------------
-    // Period Selector (Daily / Monthly / Yearly)
-    // -------------------------------
+    // --------------------------------------------------
+    // Period Selector
+    // --------------------------------------------------
     private void setupTimePeriodSelector() {
 
         binding.toggleGroup.setOnCheckedChangeListener(
@@ -160,23 +161,82 @@ public class StatisticsActivity extends AppCompatActivity {
             binding.chartTitle.setText("Monthly Expense Breakdown");
         }
 
-        liveData.observe(this, categoryTotals -> {
-
-            if (categoryTotals != null && !categoryTotals.isEmpty()) {
-                loadPieChartData(categoryTotals);
+        liveData.observe(this, totals -> {
+            if (totals == null || totals.isEmpty()) {
+                showEmptyChart();
             } else {
-                binding.pieChart.clear();
-                binding.pieChart.setCenterText(
-                        generateCenterSpannableText(0)
-                );
-                binding.pieChart.invalidate();
+                loadPieChartData(totals);
             }
         });
     }
 
-    // -------------------------------
+    // --------------------------------------------------
+    // Empty Chart (Readable in both themes)
+    // --------------------------------------------------
+    private void showEmptyChart() {
+
+        boolean isDark =
+                (getResources().getConfiguration().uiMode
+                        & Configuration.UI_MODE_NIGHT_MASK)
+                        == Configuration.UI_MODE_NIGHT_YES;
+
+        PieDataSet set = new PieDataSet(new ArrayList<>(), "");
+        set.setDrawValues(false);
+        set.setColor(Color.GRAY);
+
+        binding.pieChart.setData(new PieData(set));
+        binding.pieChart.setCenterText("No expense data");
+        binding.pieChart.setCenterTextSize(14f);
+        binding.pieChart.setCenterTextTypeface(Typeface.DEFAULT_BOLD);
+        binding.pieChart.setCenterTextColor(
+                isDark ? Color.WHITE : Color.BLACK
+        );
+
+        binding.pieChart.invalidate();
+    }
+
+    // --------------------------------------------------
+    // Data Loader
+    // --------------------------------------------------
+    private void loadPieChartData(List<TransactionDao.CategoryTotal> totals) {
+
+        boolean isDark =
+                (getResources().getConfiguration().uiMode
+                        & Configuration.UI_MODE_NIGHT_MASK)
+                        == Configuration.UI_MODE_NIGHT_YES;
+
+        ArrayList<PieEntry> entries = new ArrayList<>();
+        double totalExpense = 0;
+
+        for (TransactionDao.CategoryTotal t : totals) {
+            entries.add(
+                    new PieEntry((float) Math.abs(t.total), t.category)
+            );
+            totalExpense += t.total;
+        }
+
+        PieDataSet dataSet = new PieDataSet(entries, "");
+        dataSet.setSliceSpace(3f);
+        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
+
+        PieData data = new PieData(dataSet);
+        data.setValueFormatter(new PercentFormatter(binding.pieChart));
+        data.setValueTextSize(12f);
+        data.setValueTextColor(isDark ? Color.WHITE : Color.BLACK);
+
+        binding.pieChart.setData(data);
+        binding.pieChart.setCenterText(
+                generateCenterSpannableText(totalExpense)
+        );
+        binding.pieChart.setCenterTextColor(
+                isDark ? Color.WHITE : Color.BLACK
+        );
+        binding.pieChart.invalidate();
+    }
+
+    // --------------------------------------------------
     // Helpers
-    // -------------------------------
+    // --------------------------------------------------
     private long getStartTimeForPeriod(int checkedId) {
 
         Calendar cal = Calendar.getInstance();
@@ -196,71 +256,17 @@ public class StatisticsActivity extends AppCompatActivity {
 
         Calendar cal = Calendar.getInstance();
         selectedYear = String.valueOf(cal.get(Calendar.YEAR));
-        selectedMonth = String.format(
-                "%02d",
-                cal.get(Calendar.MONTH) + 1
-        );
+        selectedMonth = String.format("%02d", cal.get(Calendar.MONTH) + 1);
     }
 
-    private void loadPieChartData(
-            List<TransactionDao.CategoryTotal> categoryTotals) {
-
-        ArrayList<PieEntry> entries = new ArrayList<>();
-        double totalExpense = 0;
-
-        for (TransactionDao.CategoryTotal total : categoryTotals) {
-            entries.add(
-                    new PieEntry(
-                            (float) Math.abs(total.total),
-                            total.category
-                    )
-            );
-            totalExpense += total.total;
-        }
-
-        PieDataSet dataSet =
-                new PieDataSet(entries, "Expense Categories");
-
-        dataSet.setSliceSpace(3f);
-        dataSet.setColors(ColorTemplate.MATERIAL_COLORS);
-        dataSet.setDrawValues(true);
-
-        PieData data = new PieData(dataSet);
-        data.setValueFormatter(
-                new PercentFormatter(binding.pieChart)
-        );
-        data.setValueTextSize(12f);
-
-        TypedValue tv = new TypedValue();
-        getTheme().resolveAttribute(
-                com.google.android.material.R.attr.colorOnSurface,
-                tv,
-                true
-        );
-
-        data.setValueTextColor(tv.data);
-        binding.pieChart.setCenterTextColor(tv.data);
-        binding.pieChart.setData(data);
-        binding.pieChart.invalidate();
-
-        binding.pieChart.setCenterText(
-                generateCenterSpannableText(totalExpense)
-        );
-    }
-
-    private SpannableString generateCenterSpannableText(
-            double totalExpense) {
-
-        if (totalExpense == 0) {
-            return new SpannableString("No Expenses");
-        }
+    private SpannableString generateCenterSpannableText(double totalExpense) {
 
         String amount =
                 NumberFormat.getCurrencyInstance()
                         .format(Math.abs(totalExpense));
 
-        String text = amount + "\nTotal Expenses";
-        SpannableString s = new SpannableString(text);
+        SpannableString s =
+                new SpannableString(amount + "\nTotal Expenses");
 
         s.setSpan(
                 new RelativeSizeSpan(1.7f),
@@ -269,7 +275,7 @@ public class StatisticsActivity extends AppCompatActivity {
                 0
         );
         s.setSpan(
-                new StyleSpan(android.graphics.Typeface.BOLD),
+                new StyleSpan(Typeface.BOLD),
                 0,
                 amount.length(),
                 0

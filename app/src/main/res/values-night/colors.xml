@@ -13,4 +13,7 @@
 
     <color name="colorPositive">#69F0AE</color>
     <color name="colorNegative">#FF8A80</color>
+    <color name="expense_red">#E53935</color>
+    <color name="income_green">#43A047</color>
+
 </resources>
