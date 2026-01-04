@@ -17,14 +17,15 @@ public class Transaction {
     public double amount;
     public long timestamp;
 
+
+    public String category;
+
     @ColumnInfo(name = "created_at")
     public long createdAt;
 
     @ColumnInfo(name = "updated_at")
     @Nullable
     public Long updatedAt;
-
-    public String category;
 
     @TypeConverters(Converters.class)
     public TransactionType type;

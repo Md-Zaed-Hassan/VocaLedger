@@ -1,8 +1,11 @@
 <resources>
-    <string name="app_name">VoiceFinance</string>
+    <string name="app_name">VocaLedger</string>
+    <string name="currency_symbol">BDT</string>
     <string name="mic_button_description">Add transaction by voice</string>
     <string name="menu_change_theme">Change Theme</string>
     <string name="menu_set_budget">Set Monthly Budget</string>
     <string name="menu_history">History</string>
+    <string name="daily_total">Total: %1$s</string>
+
 
 </resources>

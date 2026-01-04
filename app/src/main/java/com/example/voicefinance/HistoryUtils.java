@@ -1,7 +1,12 @@
 package com.example.voicefinance;
 
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class HistoryUtils {
 
@@ -9,22 +14,39 @@ public class HistoryUtils {
             new SimpleDateFormat("MMM d · EEEE", Locale.getDefault());
 
     public static List<HistoryListItem> buildHistoryItems(
-            List<Transaction> transactions) {
+            List<Transaction> transactions,
+            HistoryFilterType filterType
+    ) {
 
         List<HistoryListItem> result = new ArrayList<>();
         Map<String, List<Transaction>> grouped = new LinkedHashMap<>();
 
-        // Group by date string
+        // -----------------------------
+        // GROUP TRANSACTIONS
+        // -----------------------------
         for (Transaction t : transactions) {
+
             String key = DAY_FORMAT.format(new Date(t.timestamp));
-            grouped.computeIfAbsent(key, k -> new ArrayList<>()).add(t);
+
+            List<Transaction> list = grouped.get(key);
+            if (list == null) {
+                list = new ArrayList<>();
+                grouped.put(key, list);
+            }
+
+            list.add(t);
         }
 
-        // Build list with headers
-        for (String date : grouped.keySet()) {
-            double dailyTotal = 0;
+        // -----------------------------
+        // BUILD DISPLAY LIST
+        // -----------------------------
+        for (Map.Entry<String, List<Transaction>> entry : grouped.entrySet()) {
 
-            for (Transaction t : grouped.get(date)) {
+            String date = entry.getKey();
+            List<Transaction> dayTransactions = entry.getValue();
+
+            double dailyTotal = 0;
+            for (Transaction t : dayTransactions) {
                 if (t.amount < 0) {
                     dailyTotal += t.amount;
                 }
@@ -37,7 +59,7 @@ public class HistoryUtils {
                     )
             );
 
-            for (Transaction t : grouped.get(date)) {
+            for (Transaction t : dayTransactions) {
                 result.add(
                         new HistoryListItem.TransactionItem(t)
                 );

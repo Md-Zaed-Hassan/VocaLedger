@@ -145,7 +145,11 @@ public interface TransactionDao {
             String month
     );
 
-
+    @Query(
+            "SELECT * FROM transactions " +
+                    "ORDER BY timestamp DESC"
+    )
+    LiveData<List<Transaction>> getAllTransactionsOrdered();
     /* ---------------------------------------------------
      * RESULT HOLDER (MPAndroidChart)
      * --------------------------------------------------- */

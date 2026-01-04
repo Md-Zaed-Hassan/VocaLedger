@@ -1,14 +1,14 @@
 package com.example.voicefinance;
+
 import android.app.DatePickerDialog;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Locale;
 import android.os.Bundle;
 import android.text.InputType;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.RadioGroup;
+import android.widget.Spinner;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -16,12 +16,19 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.voicefinance.databinding.ActivityHistoryBinding;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 public class HistoryActivity extends AppCompatActivity {
 
     private ActivityHistoryBinding binding;
     private AppDatabase db;
+
+    private HistoryFilterType currentFilter = HistoryFilterType.DAY;
+    private List<Transaction> cachedTransactions;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,13 +39,11 @@ public class HistoryActivity extends AppCompatActivity {
         binding = ActivityHistoryBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        // Toolbar
         setSupportActionBar(binding.toolbar);
-
-        // ✅ SAFE navigation handling
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         }
-
         binding.toolbar.setNavigationOnClickListener(v -> finish());
 
         db = AppDatabase.getDatabase(this);
@@ -47,21 +52,46 @@ public class HistoryActivity extends AppCompatActivity {
                 new LinearLayoutManager(this)
         );
 
+        // Observe data ONCE
         db.transactionDao()
-                .getAllTransactions()
+                .getAllTransactionsOrdered()
                 .observe(this, transactions -> {
-
-                    List<HistoryListItem> items =
-                            HistoryUtils.buildHistoryItems(transactions);
-
-                    binding.recyclerView.setAdapter(
-                            new HistoryAdapter(
-                                    items,
-                                    this::showTransactionOptions
-                            )
-                    );
+                    cachedTransactions = transactions;
+                    refreshList();
                 });
 
+        // RadioGroup filter handling
+        binding.filterGroup.setOnCheckedChangeListener(
+                (RadioGroup group, int checkedId) -> {
+
+                    if (checkedId == R.id.filter_year) {
+                        currentFilter = HistoryFilterType.YEAR;
+                    } else if (checkedId == R.id.filter_month) {
+                        currentFilter = HistoryFilterType.MONTH;
+                    } else {
+                        currentFilter = HistoryFilterType.DAY;
+                    }
+
+                    refreshList();
+                }
+        );
+    }
+
+    // -----------------------------
+    // REFRESH LIST
+    // -----------------------------
+    private void refreshList() {
+        if (cachedTransactions == null) return;
+
+        binding.recyclerView.setAdapter(
+                new HistoryAdapter(
+                        HistoryUtils.buildHistoryItems(
+                                cachedTransactions,
+                                currentFilter
+                        ),
+                        this::showTransactionOptions
+                )
+        );
     }
 
     // -----------------------------
@@ -89,14 +119,17 @@ public class HistoryActivity extends AppCompatActivity {
     // -----------------------------
     private void showEditDialog(Transaction transaction) {
 
-        // Container layout
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(40, 20, 40, 10);
 
-        // -------------------------
-        // Amount input
-        // -------------------------
+        // Label
+        EditText labelInput = new EditText(this);
+        labelInput.setHint("Label");
+        labelInput.setText(transaction.label);
+        layout.addView(labelInput);
+
+        // Amount
         EditText amountInput = new EditText(this);
         amountInput.setInputType(
                 InputType.TYPE_CLASS_NUMBER |
@@ -108,9 +141,30 @@ public class HistoryActivity extends AppCompatActivity {
         );
         layout.addView(amountInput);
 
-        // -------------------------
-        // Date selector button
-        // -------------------------
+        // Category
+        Spinner categorySpinner = new Spinner(this);
+        String[] categories = {
+                "Food", "Transportation", "Snacks",
+                "Bills", "Shopping", "Other"
+        };
+
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        categories
+                );
+        categorySpinner.setAdapter(adapter);
+
+        for (int i = 0; i < categories.length; i++) {
+            if (categories[i].equals(transaction.category)) {
+                categorySpinner.setSelection(i);
+                break;
+            }
+        }
+        layout.addView(categorySpinner);
+
+        // Date picker
         Button dateButton = new Button(this);
         dateButton.setText(getFormattedDate(transaction.timestamp));
         layout.addView(dateButton);
@@ -118,24 +172,21 @@ public class HistoryActivity extends AppCompatActivity {
         final Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(transaction.timestamp);
 
-        dateButton.setOnClickListener(v -> {
-            new DatePickerDialog(
-                    this,
-                    (view, year, month, day) -> {
-                        calendar.set(year, month, day);
-                        dateButton.setText(
-                                getFormattedDate(calendar.getTimeInMillis())
-                        );
-                    },
-                    calendar.get(Calendar.YEAR),
-                    calendar.get(Calendar.MONTH),
-                    calendar.get(Calendar.DAY_OF_MONTH)
-            ).show();
-        });
+        dateButton.setOnClickListener(v ->
+                new DatePickerDialog(
+                        this,
+                        (view, year, month, day) -> {
+                            calendar.set(year, month, day);
+                            dateButton.setText(
+                                    getFormattedDate(calendar.getTimeInMillis())
+                            );
+                        },
+                        calendar.get(Calendar.YEAR),
+                        calendar.get(Calendar.MONTH),
+                        calendar.get(Calendar.DAY_OF_MONTH)
+                ).show()
+        );
 
-        // -------------------------
-        // Dialog
-        // -------------------------
         new AlertDialog.Builder(this)
                 .setTitle("Edit Transaction")
                 .setView(layout)
@@ -146,11 +197,15 @@ public class HistoryActivity extends AppCompatActivity {
                                         amountInput.getText().toString()
                                 );
 
-                        // Preserve income / expense sign
+                        transaction.label =
+                                labelInput.getText().toString().trim();
+
+                        transaction.category =
+                                categorySpinner.getSelectedItem().toString();
+
                         transaction.amount =
                                 transaction.amount < 0 ? -value : value;
 
-                        // Update date
                         transaction.timestamp =
                                 calendar.getTimeInMillis();
 
@@ -174,9 +229,8 @@ public class HistoryActivity extends AppCompatActivity {
         ).format(new Date(millis));
     }
 
-
     // -----------------------------
-    // DELETE (CONFIRMED)
+    // DELETE CONFIRMATION
     // -----------------------------
     private void confirmDelete(Transaction transaction) {
 
