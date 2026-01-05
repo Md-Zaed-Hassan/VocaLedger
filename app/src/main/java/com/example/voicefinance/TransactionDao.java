@@ -150,6 +150,8 @@ public interface TransactionDao {
                     "ORDER BY timestamp DESC"
     )
     LiveData<List<Transaction>> getAllTransactionsOrdered();
+
+    
     /* ---------------------------------------------------
      * RESULT HOLDER (MPAndroidChart)
      * --------------------------------------------------- */

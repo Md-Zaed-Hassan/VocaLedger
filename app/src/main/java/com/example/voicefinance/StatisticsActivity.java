@@ -262,7 +262,7 @@ public class StatisticsActivity extends AppCompatActivity {
     private SpannableString generateCenterSpannableText(double totalExpense) {
 
         String amount =
-                NumberFormat.getCurrencyInstance()
+                CurrencyUtils.getCurrencyInstance()
                         .format(Math.abs(totalExpense));
 
         SpannableString s =

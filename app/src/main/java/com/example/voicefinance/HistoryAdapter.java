@@ -1,5 +1,7 @@
 package com.example.voicefinance;
 
+import android.graphics.Color;
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.ViewGroup;
 
@@ -9,7 +11,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.voicefinance.databinding.ItemHistoryDateBinding;
 import com.example.voicefinance.databinding.ItemTransactionBinding;
 
-import java.text.NumberFormat;
 import java.util.List;
 
 public class HistoryAdapter
@@ -80,7 +81,7 @@ public class HistoryAdapter
             ((DateViewHolder) holder).binding.totalText
                     .setText(
                             "Expenses: " +
-                                    NumberFormat.getCurrencyInstance()
+                                    CurrencyUtils.getCurrencyInstance()
                                             .format(header.total)
                     );
 
@@ -93,10 +94,29 @@ public class HistoryAdapter
                     (TransactionViewHolder) holder;
 
             vh.binding.label.setText(t.label);
-            vh.binding.amount.setText(
-                    NumberFormat.getCurrencyInstance()
-                            .format(t.amount)
-            );
+
+            // --------------------------------
+            // A.1 — Income / Expense styling
+            // --------------------------------
+            double amount = t.amount;
+
+            String formatted =
+                    CurrencyUtils.getCurrencyInstance()
+                            .format(Math.abs(amount));
+
+            if (amount < 0) {
+                vh.binding.amount.setText("-" + formatted);
+                vh.binding.amount.setTextColor(
+                        Color.parseColor("#D32F2F") // red
+                );
+            } else {
+                vh.binding.amount.setText("+" + formatted);
+                vh.binding.amount.setTextColor(
+                        Color.parseColor("#388E3C") // green
+                );
+            }
+
+            vh.binding.amount.setTypeface(null, Typeface.BOLD);
 
             vh.itemView.setOnLongClickListener(v -> {
                 listener.onLongClick(t);

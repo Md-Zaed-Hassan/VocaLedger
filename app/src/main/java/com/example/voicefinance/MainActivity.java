@@ -221,7 +221,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             speechRecognizerLauncher.launch(intent);
         } catch (Exception e) {
-            showToast("Your device doesn\\'t support speech recognition.");
+            showToast("Your device doesn\\\'t support speech recognition.");
         }
     }
 
@@ -261,8 +261,6 @@ public class MainActivity extends AppCompatActivity {
                 .replaceAll("got", "")
                 .replaceAll("spent", "")
                 .replaceAll("cost", "")
-                .replaceAll("dollars", "")
-                .replaceAll("dollar", "")
                 .replaceAll("on", "")
                 .replaceAll("for", "")
                 .replaceAll("at", "")
@@ -307,7 +305,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private String formatCurrency(double amount) {
-        return NumberFormat.getCurrencyInstance().format(amount);
+        return CurrencyUtils.getCurrencyInstance().format(amount);
     }
 
     private void showAdviceDialog() {
