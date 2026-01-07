@@ -49,6 +49,13 @@
             android:layout_height="wrap_content"
             android:text="Year"
             android:layout_marginStart="16dp" />
+
+        <RadioButton
+            android:id="@+id/filter_week"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Week"
+            android:layout_marginStart="16dp" />
     </RadioGroup>
 
     <!-- DATE CONTROLS -->
@@ -60,6 +67,12 @@
         android:gravity="center"
         android:padding="12dp">
 
+        <Spinner
+            android:id="@+id/weekSpinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="gone" />
         <Spinner
             android:id="@+id/monthSpinner"
             android:layout_width="0dp"

@@ -31,9 +31,10 @@ public class HistoryActivity extends AppCompatActivity {
 
     private ActivityHistoryBinding binding;
     private AppDatabase db;
-
+    private int selectedWeek;
     private HistoryFilterType currentFilter = HistoryFilterType.DAY;
     private List<Transaction> cachedTransactions;
+    private List<String> weekList;
 
     private int selectedDay;
     private int selectedMonth;
@@ -71,9 +72,11 @@ public class HistoryActivity extends AppCompatActivity {
         selectedDay = today.get(Calendar.DAY_OF_MONTH);
         selectedMonth = today.get(Calendar.MONTH);
         selectedYear = today.get(Calendar.YEAR);
+        selectedWeek = HistoryUtils.getISOWeekNumber(today);
 
         setupDayButton();
         setupMonthYearSpinners();
+        setupWeekSpinner();
         setupFilterGroup();
 
         // ---- SINGLE DB OBSERVER ----
@@ -96,18 +99,29 @@ public class HistoryActivity extends AppCompatActivity {
                     if (checkedId == R.id.filter_year) {
                         currentFilter = HistoryFilterType.YEAR;
                         dayButton.setVisibility(View.GONE);
+                        binding.weekSpinner.setVisibility(View.GONE);
                         binding.monthSpinner.setVisibility(View.GONE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
 
                     } else if (checkedId == R.id.filter_month) {
                         currentFilter = HistoryFilterType.MONTH;
                         dayButton.setVisibility(View.GONE);
+                        binding.weekSpinner.setVisibility(View.GONE);
                         binding.monthSpinner.setVisibility(View.VISIBLE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
 
-                    } else {
+                    } else if (checkedId == R.id.filter_week) {
+                        currentFilter = HistoryFilterType.WEEK;
+                        dayButton.setVisibility(View.GONE);
+                        binding.weekSpinner.setVisibility(View.VISIBLE);
+                        binding.monthSpinner.setVisibility(View.GONE);
+                        binding.yearSpinner.setVisibility(View.VISIBLE);
+
+                    }
+                    else {
                         currentFilter = HistoryFilterType.DAY;
                         dayButton.setVisibility(View.VISIBLE);
+                        binding.weekSpinner.setVisibility(View.GONE);
                         binding.monthSpinner.setVisibility(View.VISIBLE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
                     }
@@ -201,10 +215,60 @@ public class HistoryActivity extends AppCompatActivity {
 
         binding.yearSpinner.setOnItemSelectedListener(
                 new SimpleSelectionListener(pos -> {
-                    selectedYear = Integer.parseInt(yearList.get(pos));
+                    int newYear = Integer.parseInt(yearList.get(pos));
+                    if (newYear != selectedYear) {
+                        selectedYear = newYear;
+                        if (currentFilter == HistoryFilterType.WEEK) {
+                            updateWeekSpinner();
+                        }
+                        refreshList();
+                    }
+                })
+        );
+    }
+
+    // -----------------------------
+    // WEEK SPINNER
+    // -----------------------------
+    private void setupWeekSpinner() {
+        updateWeekSpinner();
+
+        binding.weekSpinner.setOnItemSelectedListener(
+                new SimpleSelectionListener(pos -> {
+                    selectedWeek = pos + 1; // Week numbers are 1-based
                     refreshList();
                 })
         );
+    }
+    private void updateWeekSpinner() {
+        int maxWeeks = HistoryUtils.getMaxWeeksInYear(selectedYear);
+        weekList = new ArrayList<>();
+
+        SimpleDateFormat dateFormat = new SimpleDateFormat("MMM d", Locale.getDefault());
+
+        for (int week = 1; week <= maxWeeks; week++) {
+            Calendar weekStart = HistoryUtils.getWeekStart(week, selectedYear);
+            Calendar weekEnd = (Calendar) weekStart.clone();
+            weekEnd.add(Calendar.DAY_OF_YEAR, 6);
+
+            String startStr = dateFormat.format(weekStart.getTime());
+            String endStr = dateFormat.format(weekEnd.getTime());
+
+            weekList.add("Week " + week + " (" + startStr + "–" + endStr + ")");
+        }
+
+        binding.weekSpinner.setAdapter(
+                new ArrayAdapter<>(
+                        this,
+                        android.R.layout.simple_spinner_dropdown_item,
+                        weekList
+                )
+        );
+
+        // Set selection to current week, or closest available
+        int selection = Math.min(selectedWeek - 1, maxWeeks - 1);
+        binding.weekSpinner.setSelection(selection);
+        selectedWeek = selection + 1;
     }
 
     // -----------------------------
@@ -222,7 +286,14 @@ public class HistoryActivity extends AppCompatActivity {
                     selectedMonth,
                     selectedYear
             );
-        } else if (currentFilter == HistoryFilterType.MONTH) {
+
+        } else if (currentFilter == HistoryFilterType.WEEK) {
+            source = HistoryUtils.filterByWeek(
+                    cachedTransactions,
+                    selectedWeek,
+                    selectedYear
+            );
+        }else if (currentFilter == HistoryFilterType.MONTH) {
             source = HistoryUtils.filterByMonthYear(
                     cachedTransactions,
                     selectedMonth,
