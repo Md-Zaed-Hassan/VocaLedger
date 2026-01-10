@@ -2,14 +2,17 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    tools:context=".HistoryActivity">
 
     <!-- Toolbar -->
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:fitsSystemWindows="true">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
@@ -37,6 +40,13 @@
             android:checked="true" />
 
         <RadioButton
+            android:id="@+id/filter_week"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Week"
+            android:layout_marginStart="16dp" />
+
+        <RadioButton
             android:id="@+id/filter_month"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -49,43 +59,50 @@
             android:layout_height="wrap_content"
             android:text="Year"
             android:layout_marginStart="16dp" />
-
-        <RadioButton
-            android:id="@+id/filter_week"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Week"
-            android:layout_marginStart="16dp" />
     </RadioGroup>
 
     <!-- DATE CONTROLS -->
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/dateControls"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
         android:padding="12dp">
+
+        <Button
+            android:id="@+id/dayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <Spinner
             android:id="@+id/weekSpinner"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:visibility="gone" />
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/yearSpinner"
+            app:layout_constraintTop_toTopOf="parent"/>
+
         <Spinner
             android:id="@+id/monthSpinner"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1" />
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/yearSpinner"
+            app:layout_constraintTop_toTopOf="parent"/>
 
         <Spinner
             android:id="@+id/yearSpinner"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="12dp" />
-    </LinearLayout>
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <!-- HISTORY LIST -->
     <androidx.recyclerview.widget.RecyclerView

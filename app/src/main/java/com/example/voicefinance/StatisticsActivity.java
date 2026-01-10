@@ -116,36 +116,27 @@ public class StatisticsActivity extends AppCompatActivity {
     }
 
     private void loadForPeriod(int id) {
-        long since = getPieChartStartTime(id);
-
-        // Load pie chart data for the selected period (today, this month, or this year)
+        // Pie chart gets data for the current period
+        long pieChartSince = getPieChartStartTime(id);
         db.transactionDao()
-                .getExpenseTotalsByCategorySince(since)
+                .getExpenseTotalsByCategorySince(pieChartSince)
                 .observe(this, this::loadPie);
 
-        // Clean up any previous trend observers
         if (activeTrendLiveData != null) {
             activeTrendLiveData.removeObservers(this);
-            activeTrendLiveData = null;
         }
 
-        // Load trend data based on the selected period
+        // Line chart gets data for a trend window
+        long lineChartSince = getLineChartStartTime(id);
         if (id == R.id.radio_daily) {
-            // For daily view, there is no trend line to show. Hide the chart.
-            binding.trendsChart.clear();
-            binding.trendsChart.setVisibility(View.GONE);
-            binding.trendsChartTitle.setVisibility(View.GONE);
-        } else if (id == R.id.radio_monthly) {
-            // For monthly view, show a daily trend for the current month.
-            activeTrendLiveData = db.transactionDao().getDailyTrends(since);
-            activeTrendLiveData.observe(this, this::drawTrends);
-        } else { // R.id.radio_yearly
-            // For yearly view, show a monthly trend for the current year.
-            activeTrendLiveData = db.transactionDao().getMonthlyTrends(since);
-            activeTrendLiveData.observe(this, this::drawTrends);
+            activeTrendLiveData = db.transactionDao().getDailyTrends(lineChartSince);
+        } else if (id == R.id.radio_yearly) {
+            activeTrendLiveData = db.transactionDao().getYearlyTrends(lineChartSince);
+        } else { // R.id.radio_monthly
+            activeTrendLiveData = db.transactionDao().getMonthlyTrends(lineChartSince);
         }
+        activeTrendLiveData.observe(this, this::drawTrends);
     }
-
 
     /* ---------------- PIE DATA ---------------- */
 
@@ -165,6 +156,8 @@ public class StatisticsActivity extends AppCompatActivity {
 
         PieDataSet set = new PieDataSet(entries, "");
         set.setColors(ColorTemplate.MATERIAL_COLORS);
+        set.setValueTextSize(14f); // Increase percentage text size
+        set.setSelectionShift(25f); // Increase selected slice size
 
         PieData data = new PieData(set);
         data.setValueFormatter(new PercentFormatter(binding.pieChart));
@@ -214,13 +207,7 @@ public class StatisticsActivity extends AppCompatActivity {
 
         final List<String> periods = generatePeriods();
 
-        if (periods.isEmpty()) {
-            binding.trendsChart.clear();
-            binding.trendsChart.setVisibility(View.GONE);
-            binding.trendsChartTitle.setVisibility(View.GONE);
-            return;
-        }
-
+        // This ensures the chart is always visible with a timeline, even if there is no data.
         binding.trendsChart.setVisibility(View.VISIBLE);
         binding.trendsChartTitle.setVisibility(View.VISIBLE);
 
@@ -268,11 +255,12 @@ public class StatisticsActivity extends AppCompatActivity {
             @Override
             public String getFormattedValue(float v) {
                 int i = (int) v;
-                String period = (i >= 0 && i < periods.size()) ? periods.get(i) : "";
-                // Shorten date for daily trends if it's too long
-                if (binding.toggleGroup.getCheckedRadioButtonId() == R.id.radio_monthly && period.length() > 5) {
-                    return period.substring(5);
-                } else if (binding.toggleGroup.getCheckedRadioButtonId() == R.id.radio_yearly && period.length() > 4) {
+                if (i < 0 || i >= periods.size()) return "";
+
+                String period = periods.get(i);
+                int checkedId = binding.toggleGroup.getCheckedRadioButtonId();
+
+                if ((checkedId == R.id.radio_daily || checkedId == R.id.radio_monthly) && period.length() > 5) {
                     return period.substring(5);
                 }
                 return period;
@@ -286,25 +274,27 @@ public class StatisticsActivity extends AppCompatActivity {
     private List<String> generatePeriods() {
         List<String> periods = new ArrayList<>();
         int checkedId = binding.toggleGroup.getCheckedRadioButtonId();
+        long since = getLineChartStartTime(checkedId);
 
-        if (checkedId == R.id.radio_daily) {
-            return periods; // No periods for daily trend line
-        }
-
-        long since = getPieChartStartTime(checkedId);
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(since);
+
         Calendar endCal = Calendar.getInstance();
 
         SimpleDateFormat fmt;
         int calendarField;
 
-        if (checkedId == R.id.radio_monthly) {
+        if (checkedId == R.id.radio_daily) {
             fmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
             calendarField = Calendar.DAY_OF_YEAR;
-        } else { // R.id.radio_yearly
+        } else if (checkedId == R.id.radio_monthly) {
             fmt = new SimpleDateFormat("yyyy-MM", Locale.US);
             calendarField = Calendar.MONTH;
+            cal.set(Calendar.DAY_OF_MONTH, 1); // Normalize to start of month
+        } else { // R.id.radio_yearly
+            fmt = new SimpleDateFormat("yyyy", Locale.US);
+            calendarField = Calendar.YEAR;
+            cal.set(Calendar.DAY_OF_YEAR, 1); // Normalize to start of year
         }
 
         while (cal.before(endCal) || cal.equals(endCal)) {
@@ -327,6 +317,14 @@ public class StatisticsActivity extends AppCompatActivity {
         } else if (id == R.id.radio_yearly) {
             c.set(Calendar.DAY_OF_YEAR, 1);
         }
+        return c.getTimeInMillis();
+    }
+
+    private long getLineChartStartTime(int id) {
+        Calendar c = Calendar.getInstance();
+        if (id == R.id.radio_daily) c.add(Calendar.DAY_OF_YEAR, -29); // 30 days
+        else if (id == R.id.radio_yearly) c.add(Calendar.YEAR, -4); // 5 years
+        else c.add(Calendar.MONTH, -11); // 12 months
         return c.getTimeInMillis();
     }
 }

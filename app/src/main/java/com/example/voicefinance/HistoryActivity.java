@@ -2,20 +2,17 @@ package com.example.voicefinance;
 
 import android.app.DatePickerDialog;
 import android.os.Bundle;
-import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.LinearLayout;
 import android.widget.RadioGroup;
-import android.widget.Spinner;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.voicefinance.databinding.ActivityHistoryBinding;
@@ -23,7 +20,6 @@ import com.example.voicefinance.databinding.ActivityHistoryBinding;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -44,7 +40,11 @@ public class HistoryActivity extends AppCompatActivity {
     private String searchQuery = "";
 
     private List<String> yearList;
-    private Button dayButton;
+
+    // Custom interface to replace java.util.function.IntConsumer
+    interface IntCallback {
+        void accept(int value);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +54,13 @@ public class HistoryActivity extends AppCompatActivity {
 
         binding = ActivityHistoryBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+
+        // Handle status bar overlap
+        ViewCompat.setOnApplyWindowInsetsListener(binding.getRoot(), (v, insets) -> {
+            int topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+            v.setPadding(v.getPaddingLeft(), topInset, v.getPaddingRight(), v.getPaddingBottom());
+            return insets;
+        });
 
         setSupportActionBar(binding.toolbar);
         if (getSupportActionBar() != null) {
@@ -95,56 +102,46 @@ public class HistoryActivity extends AppCompatActivity {
     private void setupFilterGroup() {
         binding.filterGroup.setOnCheckedChangeListener(
                 (RadioGroup group, int checkedId) -> {
-
                     if (checkedId == R.id.filter_year) {
                         currentFilter = HistoryFilterType.YEAR;
-                        dayButton.setVisibility(View.GONE);
+                        binding.dayButton.setVisibility(View.GONE);
                         binding.weekSpinner.setVisibility(View.GONE);
                         binding.monthSpinner.setVisibility(View.GONE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
-
                     } else if (checkedId == R.id.filter_month) {
                         currentFilter = HistoryFilterType.MONTH;
-                        dayButton.setVisibility(View.GONE);
+                        binding.dayButton.setVisibility(View.GONE);
                         binding.weekSpinner.setVisibility(View.GONE);
                         binding.monthSpinner.setVisibility(View.VISIBLE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
-
                     } else if (checkedId == R.id.filter_week) {
                         currentFilter = HistoryFilterType.WEEK;
-                        dayButton.setVisibility(View.GONE);
+                        binding.dayButton.setVisibility(View.GONE);
                         binding.weekSpinner.setVisibility(View.VISIBLE);
                         binding.monthSpinner.setVisibility(View.GONE);
                         binding.yearSpinner.setVisibility(View.VISIBLE);
-
-                    }
-                    else {
+                    } else { // DAY
                         currentFilter = HistoryFilterType.DAY;
-                        dayButton.setVisibility(View.VISIBLE);
+                        binding.dayButton.setVisibility(View.VISIBLE);
                         binding.weekSpinner.setVisibility(View.GONE);
-                        binding.monthSpinner.setVisibility(View.VISIBLE);
-                        binding.yearSpinner.setVisibility(View.VISIBLE);
+                        binding.monthSpinner.setVisibility(View.GONE);
+                        binding.yearSpinner.setVisibility(View.GONE);
                     }
-
                     refreshList();
                 }
         );
+        // Set initial state
+        binding.filterGroup.check(R.id.filter_day);
     }
 
     // -----------------------------
     // DAY PICKER
     // -----------------------------
     private void setupDayButton() {
-
-        dayButton = new Button(this);
         updateDayButtonText();
-
-        ((LinearLayout) binding.monthSpinner.getParent())
-                .addView(dayButton, 0);
-
         Calendar cal = Calendar.getInstance();
 
-        dayButton.setOnClickListener(v -> {
+        binding.dayButton.setOnClickListener(v -> {
             new DatePickerDialog(
                     this,
                     (view, year, month, day) -> {
@@ -164,7 +161,7 @@ public class HistoryActivity extends AppCompatActivity {
     private void updateDayButtonText() {
         Calendar cal = Calendar.getInstance();
         cal.set(selectedYear, selectedMonth, selectedDay);
-        dayButton.setText(
+        binding.dayButton.setText(
                 new SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
                         .format(cal.getTime())
         );
@@ -306,10 +303,23 @@ public class HistoryActivity extends AppCompatActivity {
             );
         }
 
+        // Apply search query
+        List<Transaction> filteredSource = new ArrayList<>();
+        if (searchQuery.isEmpty()) {
+            filteredSource.addAll(source);
+        } else {
+            for (Transaction t : source) {
+                if (t.label.toLowerCase().contains(searchQuery) ||
+                    t.category.toLowerCase().contains(searchQuery)) {
+                    filteredSource.add(t);
+                }
+            }
+        }
+
         binding.recyclerView.setAdapter(
                 new HistoryAdapter(
                         HistoryUtils.buildHistoryItems(
-                                source,
+                                filteredSource,
                                 currentFilter
                         ),
                         this::showTransactionOptions
@@ -371,8 +381,8 @@ public class HistoryActivity extends AppCompatActivity {
     private static class SimpleSelectionListener
             implements android.widget.AdapterView.OnItemSelectedListener {
 
-        private final java.util.function.IntConsumer callback;
-        SimpleSelectionListener(java.util.function.IntConsumer c) {
+        private final IntCallback callback;
+        SimpleSelectionListener(IntCallback c) {
             callback = c;
         }
 
