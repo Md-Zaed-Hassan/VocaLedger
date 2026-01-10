@@ -39,9 +39,14 @@ public class CategoryDetailActivity extends AppCompatActivity {
         String month = getIntent().getStringExtra("month");
 
         // Defensive fallback (prevents crash)
-        if (category == null || year == null || month == null) {
+        if (category == null) {
             finish();
             return;
+        }
+
+        // Update toolbar title
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setTitle(category);
         }
 
         // -------------------------------
@@ -55,7 +60,13 @@ public class CategoryDetailActivity extends AppCompatActivity {
         // -------------------------------
         db = AppDatabase.getDatabase(this);
 
-        observeCategoryData(category, year, month);
+        // If year and month are provided, show only that month
+        // Otherwise, show full category history
+        if (year != null && month != null) {
+            observeCategoryData(category, year, month);
+        } else {
+            observeFullCategoryHistory(category);
+        }
     }
 
     // -------------------------------
@@ -68,12 +79,30 @@ public class CategoryDetailActivity extends AppCompatActivity {
     }
 
     // -------------------------------
-    // Observe category transactions
+    // Observe category transactions (single month)
     // -------------------------------
     private void observeCategoryData(String category, String year, String month) {
 
         db.transactionDao()
                 .getTransactionsByCategoryAndMonth(category, year, month)
+                .observe(this, transactions -> {
+
+                    // 🔒 CRASH PREVENTION
+                    if (transactions == null) return;
+
+                    TransactionAdapter adapter =
+                            new TransactionAdapter(transactions, null);
+                    recyclerView.setAdapter(adapter);
+                });
+    }
+
+    // -------------------------------
+    // Observe full category history
+    // -------------------------------
+    private void observeFullCategoryHistory(String category) {
+
+        db.transactionDao()
+                .getTransactionsByCategory(category)
                 .observe(this, transactions -> {
 
                     // 🔒 CRASH PREVENTION

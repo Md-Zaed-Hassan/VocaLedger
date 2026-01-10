@@ -3,7 +3,8 @@ package com.example.voicefinance;
 import android.Manifest;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
-import android.content.Context;import android.content.Intent;
+import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -15,8 +16,9 @@ import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.Animation;
 import android.view.animation.ScaleAnimation;
-import android.widget.Toast;
 import android.widget.EditText;
+import android.widget.Toast;
+
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -26,15 +28,13 @@ import androidx.core.content.ContextCompat;
 
 import com.example.voicefinance.databinding.ActivityMainBinding;
 
-import java.text.NumberFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.Calendar;
-
 
 public class MainActivity extends AppCompatActivity {
 
@@ -56,15 +56,17 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ThemeHelper.applyTheme(this);
         super.onCreate(savedInstanceState);
+
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
-
         setSupportActionBar(binding.toolbar);
 
         db = AppDatabase.getDatabase(this);
+
         Calendar cal = Calendar.getInstance();
         currentYear = String.valueOf(cal.get(Calendar.YEAR));
-        currentMonth = String.format("%02d", cal.get(Calendar.MONTH) + 1);
+        currentMonth = String.format(Locale.getDefault(), "%02d", cal.get(Calendar.MONTH) + 1);
+
         observeMonthlySummary();
         registerLaunchers();
         setupListeners();
@@ -72,6 +74,9 @@ public class MainActivity extends AppCompatActivity {
         observeMonthlyBudget();
     }
 
+    // --------------------------------------------------
+    // MENU
+    // --------------------------------------------------
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
@@ -81,24 +86,17 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
 
-        int id = item.getItemId();
-
-        // History screen (Phase F.1)
-        // Opens full transaction list
-        if (id == R.id.action_history) {
-            startActivity(
-                    new Intent(this, HistoryActivity.class)
-            );
+        if (item.getItemId() == R.id.action_history) {
+            startActivity(new Intent(this, HistoryActivity.class));
             return true;
         }
 
-        // Theme selection (Light / Dark / System)
-        if (id == R.id.action_change_theme) {
+        if (item.getItemId() == R.id.action_change_theme) {
             showThemeChoiceDialog();
             return true;
         }
-        // Monthly budget (optional feature)
-        if (id == R.id.action_set_budget) {
+
+        if (item.getItemId() == R.id.action_set_budget) {
             showSetBudgetDialog();
             return true;
         }
@@ -106,8 +104,35 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    // --------------------------------------------------
+    // DASHBOARD
+    // --------------------------------------------------
+    private void observeData() {
+        db.transactionDao()
+                .getAllTransactionsOrdered()
+                .observe(this, this::updateDashboard);
+    }
 
+    private void updateDashboard(List<Transaction> transactions) {
 
+        double totalBalance = 0;
+        double totalIncome = 0;
+        double totalExpense = 0;
+
+        for (Transaction t : transactions) {
+            totalBalance += t.amount;
+            if (t.amount > 0) totalIncome += t.amount;
+            else totalExpense += t.amount;
+        }
+
+        binding.balanceAmount.setText(CurrencyUtils.getCurrencyInstance().format(totalBalance));
+        binding.incomeAmount.setText(CurrencyUtils.getCurrencyInstance().format(totalIncome));
+        binding.expenseAmount.setText(CurrencyUtils.getCurrencyInstance().format(totalExpense));
+    }
+
+    // --------------------------------------------------
+    // THEME
+    // --------------------------------------------------
     private void showThemeChoiceDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Choose Theme");
@@ -121,151 +146,70 @@ public class MainActivity extends AppCompatActivity {
             recreate();
         });
 
-        AlertDialog dialog = builder.create();
-        dialog.show();
+        builder.show();
     }
 
+    // --------------------------------------------------
+    // VOICE INPUT
+    // --------------------------------------------------
     private void registerLaunchers() {
-        requestPermissionLauncher = registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-            if (isGranted) {
-                startSpeechToText();
-            } else {
-                showToast("Microphone permission is required for voice entry.");
-            }
-        });
 
-        speechRecognizerLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                ArrayList<String> results = result.getData().getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-                if (results != null && !results.isEmpty()) {
-                    String spokenText = results.get(0);
-                    parseSpeechAndSave(spokenText);
-                }
-            }
-        });
-    }
+        requestPermissionLauncher =
+                registerForActivityResult(
+                        new ActivityResultContracts.RequestPermission(),
+                        granted -> {
+                            if (granted) startSpeechToText();
+                            else showToast("Microphone permission is required.");
+                        });
 
-    private void setupListeners() {
-        binding.modeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            animateManualCard(isChecked);
-        });
-
-        binding.addIncomeButton.setOnClickListener(v -> handleManualTransaction(false));
-        binding.addExpenseButton.setOnClickListener(v -> handleManualTransaction(true));
-
-        binding.micButton.setOnClickListener(v -> {
-            animateMicClick();
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                startSpeechToText();
-            } else {
-                requestPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO);
-            }
-        });
-
-        binding.adviceButton.setOnClickListener(v -> showAdviceDialog());
-
-        binding.statsButton.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, StatisticsActivity.class);
-            startActivity(intent);
-        });
-    }
-
-    private void animateMicClick() {
-        ScaleAnimation scaleAnim = new ScaleAnimation(
-                1.0f, 1.2f, 1.0f, 1.2f,
-                Animation.RELATIVE_TO_SELF, 0.5f,
-                Animation.RELATIVE_TO_SELF, 0.5f
-        );
-        scaleAnim.setDuration(100);
-        scaleAnim.setInterpolator(new AccelerateDecelerateInterpolator());
-        scaleAnim.setRepeatMode(Animation.REVERSE);
-        scaleAnim.setRepeatCount(1);
-        binding.micButton.startAnimation(scaleAnim);
-    }
-
-    private void animateManualCard(boolean isShowing) {
-        if (isShowing) {
-            binding.manualEntryCard.setVisibility(View.VISIBLE);
-            binding.manualEntryCard.setAlpha(0f);
-            binding.manualEntryCard.setTranslationY(-50f);
-
-            binding.manualEntryCard.animate()
-                    .alpha(1.0f)
-                    .translationY(0)
-                    .setDuration(300)
-                    .setInterpolator(new AccelerateDecelerateInterpolator())
-                    .setListener(null);
-            binding.modeSwitch.setText("Manual Mode");
-        } else {
-            binding.manualEntryCard.animate()
-                    .alpha(0f)
-                    .translationY(-50f)
-                    .setDuration(300)
-                    .setInterpolator(new AccelerateDecelerateInterpolator())
-                    .setListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
-                            binding.manualEntryCard.setVisibility(View.GONE);
-                        }
-                    });
-            binding.modeSwitch.setText("Voice Mode");
-        }
+        speechRecognizerLauncher =
+                registerForActivityResult(
+                        new ActivityResultContracts.StartActivityForResult(),
+                        result -> {
+                            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                                ArrayList<String> results =
+                                        result.getData().getStringArrayListExtra(
+                                                RecognizerIntent.EXTRA_RESULTS);
+                                if (results != null && !results.isEmpty()) {
+                                    parseSpeechAndSave(results.get(0));
+                                }
+                            }
+                        });
     }
 
     private void startSpeechToText() {
         Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak your transaction...");
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE,
+                Locale.getDefault());
+        intent.putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                "Speak your transaction");
 
-        try {
-            speechRecognizerLauncher.launch(intent);
-        } catch (Exception e) {
-            showToast("Your device doesn\\\'t support speech recognition.");
-        }
+        speechRecognizerLauncher.launch(intent);
     }
 
     private void parseSpeechAndSave(String text) {
-        text = text.toLowerCase();
-        boolean isExpense = true;
 
-        if (text.contains("income") || text.contains("add") || text.contains("got")) {
-            isExpense = false;
-        } else if (text.contains("expense") || text.contains("spent") || text.contains("cost")) {
-            isExpense = true;
-        }
+        text = text.toLowerCase(Locale.getDefault());
+        boolean isExpense = !(text.contains("income") || text.contains("got"));
 
         Pattern pattern = Pattern.compile("(\\d+(\\.\\d+)?)");
         Matcher matcher = pattern.matcher(text);
 
-        double amount = 0.0;
-        String amountString = "";
-        if (matcher.find()) {
-            try {
-                amountString = matcher.group(1);
-                amount = Double.parseDouble(amountString);
-            } catch (NumberFormatException e) {
-                showToast("Could not understand the amount.");
-                return;
-            }
-        }
-
-        if (amount == 0.0) {
-            showToast("I heard: '" + text + "'. Could not find an amount.");
+        if (!matcher.find()) {
+            showToast("Amount not detected");
             return;
         }
 
-        String label = text.replaceAll("income", "")
-                .replaceAll("expense", "")
-                .replaceAll("add", "")
-                .replaceAll("got", "")
-                .replaceAll("spent", "")
-                .replaceAll("cost", "")
-                .replaceAll("on", "")
-                .replaceAll("for", "")
-                .replaceAll("at", "")
-                .replaceAll(amountString, "")
-                .replaceAll("[^a-zA-Z ]", "")
+        double amount = Double.parseDouble(matcher.group(1));
+        if (isExpense) amount = -amount;
+
+        String label = text.replaceAll(matcher.group(1), "")
+                .replaceAll("[^a-z ]", "")
                 .trim();
 
         if (label.isEmpty()) {
@@ -274,163 +218,89 @@ public class MainActivity extends AppCompatActivity {
             label = label.substring(0, 1).toUpperCase() + label.substring(1);
         }
 
-        handleVoiceTransaction(label, amount, isExpense);
+        saveTransaction(new Transaction(
+                label,
+                amount,
+                System.currentTimeMillis(),
+                label,
+                isExpense ? TransactionType.EXPENSE : TransactionType.INCOME
+        ));
     }
 
-    private void observeData() {
-        db.transactionDao().getAllTransactions().observe(this, transactions -> {
-            if (transactions != null) {
-                updateDashboard(transactions);
+    // --------------------------------------------------
+    // MANUAL INPUT
+    // --------------------------------------------------
+    private void setupListeners() {
+
+        binding.addIncomeButton.setOnClickListener(v ->
+                handleManualTransaction(false));
+
+        binding.addExpenseButton.setOnClickListener(v ->
+                handleManualTransaction(true));
+
+        binding.micButton.setOnClickListener(v -> {
+            animateMicClick();
+            if (ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED) {
+                startSpeechToText();
+            } else {
+                requestPermissionLauncher.launch(
+                        Manifest.permission.RECORD_AUDIO);
             }
         });
-    }
 
-    private void updateDashboard(List<Transaction> transactions) {
-        double totalBalance = 0.0;
-        double totalIncome = 0.0;
-        double totalExpense = 0.0;
-
-        for (Transaction transaction : transactions) {
-            totalBalance += transaction.amount;
-            if (transaction.amount > 0) {
-                totalIncome += transaction.amount;
-            } else {
-                totalExpense += transaction.amount;
-            }
-        }
-
-        binding.balanceAmount.setText(formatCurrency(totalBalance));
-        binding.incomeAmount.setText(formatCurrency(totalIncome));
-        binding.expenseAmount.setText(formatCurrency(totalExpense));
-    }
-
-    private String formatCurrency(double amount) {
-        return CurrencyUtils.getCurrencyInstance().format(amount);
-    }
-
-    private void showAdviceDialog() {
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        long lastTimestamp = prefs.getLong(LAST_ADVICE_TIMESTAMP, 0);
-        int lastIndex = prefs.getInt(LAST_ADVICE_INDEX, -1);
-
-        long currentTime = System.currentTimeMillis();
-        String[] adviceArray = getResources().getStringArray(R.array.financial_advice);
-
-        int adviceIndex;
-
-        if (currentTime - lastTimestamp > ADVICE_INTERVAL) {
-            Random random = new Random();
-            adviceIndex = random.nextInt(adviceArray.length);
-
-            if (adviceArray.length > 1 && adviceIndex == lastIndex) {
-                adviceIndex = (adviceIndex + 1) % adviceArray.length;
-            }
-
-            SharedPreferences.Editor editor = prefs.edit();
-            editor.putLong(LAST_ADVICE_TIMESTAMP, currentTime);
-            editor.putInt(LAST_ADVICE_INDEX, adviceIndex);
-            editor.apply();
-        } else {
-            adviceIndex = lastIndex;
-            if (adviceIndex == -1) {
-                Random random = new Random();
-                adviceIndex = random.nextInt(adviceArray.length);
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putLong(LAST_ADVICE_TIMESTAMP, currentTime);
-                editor.putInt(LAST_ADVICE_INDEX, adviceIndex);
-                editor.apply();
-            }
-        }
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Financial Advice");
-        builder.setMessage(adviceArray[adviceIndex]);
-        builder.setPositiveButton("OK", (dialog, which) -> dialog.dismiss());
-        AlertDialog dialog = builder.create();
-        dialog.show();
+        binding.statsButton.setOnClickListener(v ->
+                startActivity(new Intent(this, StatisticsActivity.class)));
     }
 
     private void handleManualTransaction(boolean isExpense) {
+
         String amountStr = binding.editTextAmount.getText().toString();
         String label = binding.editTextLabel.getText().toString();
 
         if (TextUtils.isEmpty(amountStr)) {
-            showToast("Please enter an amount");
+            showToast("Enter amount");
             return;
         }
+
+        double amount = Double.parseDouble(amountStr);
+        if (isExpense) amount = -amount;
 
         if (TextUtils.isEmpty(label)) {
             label = isExpense ? "Expense" : "Income";
         }
 
-        double amount;
-        try {
-            amount = Double.parseDouble(amountStr);
-        } catch (NumberFormatException e) {
-            showToast("Please enter a valid number");
-            return;
-        }
-
-        if (isExpense) {
-            amount = amount * -1;
-        }
-
-        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label, isExpense ? TransactionType.EXPENSE : TransactionType.INCOME));
+        saveTransaction(new Transaction(
+                label,
+                amount,
+                System.currentTimeMillis(),
+                label,
+                isExpense ? TransactionType.EXPENSE : TransactionType.INCOME
+        ));
 
         binding.editTextAmount.setText("");
         binding.editTextLabel.setText("");
     }
 
-    private void handleVoiceTransaction(String label, double amount, boolean isExpense) {
-        if (isExpense) {
-            amount = amount * -1;
-        }
-        saveTransaction(new Transaction(label, amount, System.currentTimeMillis(), label, isExpense ? TransactionType.EXPENSE : TransactionType.INCOME));
-    }
-
     private void saveTransaction(Transaction transaction) {
         AppDatabase.databaseWriteExecutor.execute(() -> {
             db.transactionDao().insert(transaction);
-
-            String type = transaction.amount > 0 ? "Income" : "Expense";
-            showToast(type + " saved!");
+            showToast("Saved");
         });
     }
 
-    private void showSetBudgetDialog() {
-        EditText input = new EditText(this);
-        input.setHint("Enter monthly budget");
-
-        new AlertDialog.Builder(this)
-                .setTitle("Set Monthly Budget (Optional)")
-                .setView(input)
-                .setPositiveButton("Save", (d, w) -> {
-                    try {
-                        double value = Double.parseDouble(input.getText().toString());
-                        BudgetHelper.setMonthlyBudget(this, value);
-                        observeMonthlyBudget();
-                    } catch (Exception ignored) {}
-                })
-                .setNegativeButton("Cancel", null)
-                .show();
-    }
-
-    private void showToast(String message) {
-        runOnUiThread(() -> {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-        });
-    }
-
-
+    // --------------------------------------------------
+    // MONTHLY SUMMARY
+    // --------------------------------------------------
     private void observeMonthlySummary() {
-
         db.transactionDao()
                 .getMonthlyIncome(currentYear, currentMonth)
-                .observe(this, income -> updateMonthlyDashboard());
+                .observe(this, i -> updateMonthlyDashboard());
 
         db.transactionDao()
                 .getMonthlyExpense(currentYear, currentMonth)
-                .observe(this, expense -> updateMonthlyDashboard());
+                .observe(this, e -> updateMonthlyDashboard());
     }
 
     private void updateMonthlyDashboard() {
@@ -443,28 +313,27 @@ public class MainActivity extends AppCompatActivity {
                             .getMonthlyExpense(currentYear, currentMonth)
                             .observe(this, expense -> {
 
-                                double totalIncome = income != null ? income : 0.0;
-                                double totalExpense = expense != null ? expense : 0.0;
-                                double balance = totalIncome + totalExpense;
+                                double in = income != null ? income : 0;
+                                double out = expense != null ? expense : 0;
+                                double bal = in + out;
 
-                                binding.incomeAmount.setText(formatCurrency(totalIncome));
-                                binding.expenseAmount.setText(formatCurrency(totalExpense));
-                                binding.balanceAmount.setText(formatCurrency(balance));
+                                binding.incomeAmount.setText(
+                                        CurrencyUtils.getCurrencyInstance().format(in));
+                                binding.expenseAmount.setText(
+                                        CurrencyUtils.getCurrencyInstance().format(out));
+                                binding.balanceAmount.setText(
+                                        CurrencyUtils.getCurrencyInstance().format(bal));
                             });
                 });
     }
 
+    // --------------------------------------------------
+    // BUDGET
+    // --------------------------------------------------
     private void observeMonthlyBudget() {
 
         double budget = BudgetHelper.getMonthlyBudget(this);
-
-        // FEATURE IS OPTIONAL — HARD EXIT
-        if (budget <= 0) {
-            binding.budgetStatusText.setVisibility(View.GONE);
-            return;
-        }
-
-        binding.budgetStatusText.setVisibility(View.VISIBLE);
+        if (budget <= 0) return;
 
         db.transactionDao()
                 .getCurrentMonthExpense()
@@ -472,23 +341,57 @@ public class MainActivity extends AppCompatActivity {
 
                     if (expense == null) return;
 
-                    double spent = Math.abs(expense);
-                    double percent = (spent / budget) * 100;
+                    double used = Math.abs(expense);
+                    double percent = (used / budget) * 100;
 
-                    if (percent >= 100) {
-                        binding.budgetStatusText.setText("⚠ Budget exceeded!");
-                    } else if (percent >= 80) {
-                        binding.budgetStatusText.setText("⚠ 80% of budget used");
-                    } else if (percent >= 50) {
-                        binding.budgetStatusText.setText("ℹ 50% of budget used");
-                    } else {
+                    if (percent >= 100)
+                        binding.budgetStatusText.setText("⚠ Budget exceeded");
+                    else
                         binding.budgetStatusText.setText(
-                                "Budget usage: " + String.format(Locale.getDefault(), "%.0f%%", percent)
-
-                        );
-                    }
+                                String.format(
+                                        Locale.getDefault(),
+                                        "Budget usage: %.0f%%",
+                                        percent));
                 });
     }
 
+    // --------------------------------------------------
+    // UI HELPERS
+    // --------------------------------------------------
+    private void animateMicClick() {
 
+        ScaleAnimation anim =
+                new ScaleAnimation(
+                        1f, 1.2f, 1f, 1.2f,
+                        Animation.RELATIVE_TO_SELF, 0.5f,
+                        Animation.RELATIVE_TO_SELF, 0.5f);
+
+        anim.setDuration(120);
+        anim.setRepeatMode(Animation.REVERSE);
+        anim.setRepeatCount(1);
+        binding.micButton.startAnimation(anim);
+    }
+
+    private void showSetBudgetDialog() {
+
+        EditText input = new EditText(this);
+        input.setHint("Monthly budget");
+
+        new AlertDialog.Builder(this)
+                .setTitle("Set Budget")
+                .setView(input)
+                .setPositiveButton("Save", (d, w) -> {
+                    try {
+                        double v = Double.parseDouble(input.getText().toString());
+                        BudgetHelper.setMonthlyBudget(this, v);
+                    } catch (Exception ignored) {}
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showToast(String msg) {
+        runOnUiThread(() ->
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show());
+    }
 }

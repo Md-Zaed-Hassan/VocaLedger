@@ -2,10 +2,10 @@ package com.example.voicefinance;
 
 import androidx.lifecycle.LiveData;
 import androidx.room.Dao;
+import androidx.room.Delete;
 import androidx.room.Insert;
 import androidx.room.Query;
-import androidx.room.Delete;
-import androidx.room.Update; // ✅ REQUIRED for edit support
+import androidx.room.Update;
 
 import java.util.List;
 
@@ -16,35 +16,26 @@ public interface TransactionDao {
      * BASIC CRUD
      * --------------------------------------------------- */
 
-    // Insert a new transaction (used by MainActivity)
     @Insert
     void insert(Transaction transaction);
 
-    // ✅ REQUIRED: Update an existing transaction (Phase F – Edit)
     @Update
     void update(Transaction transaction);
 
-    // Delete a transaction (Phase F – Delete)
     @Delete
     void delete(Transaction transaction);
 
-
     /* ---------------------------------------------------
-     * DASHBOARD / HISTORY
+     * CANONICAL TRANSACTION LIST
      * --------------------------------------------------- */
 
-    // Fetch all transactions ordered by creation time
-    // Used by dashboard + history screen
-    @Query("SELECT * FROM transactions ORDER BY created_at DESC")
-    LiveData<List<Transaction>> getAllTransactions();
-
+    @Query("SELECT * FROM transactions ORDER BY timestamp DESC")
+    LiveData<List<Transaction>> getAllTransactionsOrdered();
 
     /* ---------------------------------------------------
-     * LEGACY ANALYTICS (RELATIVE TIME)
+     * RELATIVE ANALYTICS (PIE CHART)
      * --------------------------------------------------- */
 
-    // Backward-compatible analytics
-    // Used by existing StatisticsActivity logic
     @Query(
             "SELECT category, SUM(amount) AS total " +
                     "FROM transactions " +
@@ -53,111 +44,129 @@ public interface TransactionDao {
     )
     LiveData<List<CategoryTotal>> getExpenseTotalsByCategorySince(long since);
 
-
     /* ---------------------------------------------------
-     * CALENDAR-CORRECT ANALYTICS (PHASE E / E2)
+     * MONTHLY SUMMARY
      * --------------------------------------------------- */
 
-    // YEARLY expense breakdown by category
     @Query(
-            "SELECT category, SUM(amount) AS total " +
-                    "FROM transactions " +
-                    "WHERE amount < 0 " +
-                    "AND strftime('%Y', timestamp / 1000, 'unixepoch') = :year " +
-                    "GROUP BY category"
-    )
-    LiveData<List<CategoryTotal>> getYearlyExpenseByCategory(String year);
-
-    // MONTHLY expense breakdown by category
-    @Query(
-            "SELECT category, SUM(amount) AS total " +
-                    "FROM transactions " +
-                    "WHERE amount < 0 " +
-                    "AND strftime('%Y', timestamp / 1000, 'unixepoch') = :year " +
-                    "AND strftime('%m', timestamp / 1000, 'unixepoch') = :month " +
-                    "GROUP BY category"
-    )
-    LiveData<List<CategoryTotal>> getMonthlyExpenseByCategory(
-            String year,
-            String month
-    );
-
-    // DAILY expense breakdown (current day)
-    @Query(
-            "SELECT category, SUM(amount) AS total " +
-                    "FROM transactions " +
-                    "WHERE amount < 0 " +
-                    "AND date(timestamp / 1000, 'unixepoch') = date('now') " +
-                    "GROUP BY category"
-    )
-    LiveData<List<CategoryTotal>> getDailyExpenseByCategory();
-
-
-    /* ---------------------------------------------------
-     * MONTHLY SUMMARY (BUDGET + DASHBOARD)
-     * --------------------------------------------------- */
-
-    // Total income for a given month
-    @Query(
-            "SELECT IFNULL(SUM(amount), 0) FROM transactions " +
+            "SELECT IFNULL(SUM(amount),0) FROM transactions " +
                     "WHERE amount > 0 " +
-                    "AND strftime('%Y', timestamp / 1000, 'unixepoch') = :year " +
-                    "AND strftime('%m', timestamp / 1000, 'unixepoch') = :month"
+                    "AND strftime('%Y', timestamp/1000, 'unixepoch', 'localtime') = :year " +
+                    "AND strftime('%m', timestamp/1000, 'unixepoch', 'localtime') = :month"
     )
     LiveData<Double> getMonthlyIncome(String year, String month);
 
-    // Total expense for a given month
     @Query(
-            "SELECT IFNULL(SUM(amount), 0) FROM transactions " +
+            "SELECT IFNULL(SUM(amount),0) FROM transactions " +
                     "WHERE amount < 0 " +
-                    "AND strftime('%Y', timestamp / 1000, 'unixepoch') = :year " +
-                    "AND strftime('%m', timestamp / 1000, 'unixepoch') = :month"
+                    "AND strftime('%Y', timestamp/1000, 'unixepoch', 'localtime') = :year " +
+                    "AND strftime('%m', timestamp/1000, 'unixepoch', 'localtime') = :month"
     )
     LiveData<Double> getMonthlyExpense(String year, String month);
 
-    // Total expense for CURRENT month (budget warning)
     @Query(
-            "SELECT IFNULL(SUM(amount), 0) " +
-                    "FROM transactions " +
+            "SELECT IFNULL(SUM(amount),0) FROM transactions " +
                     "WHERE amount < 0 " +
-                    "AND strftime('%Y-%m', timestamp / 1000, 'unixepoch') = " +
-                    "      strftime('%Y-%m', 'now')"
+                    "AND strftime('%Y-%m', timestamp/1000, 'unixepoch', 'localtime') = strftime('%Y-%m','now', 'localtime')"
     )
     LiveData<Double> getCurrentMonthExpense();
 
-
     /* ---------------------------------------------------
-     * CATEGORY DRILL-DOWN (PHASE E)
+     * CATEGORY DRILL-DOWN
      * --------------------------------------------------- */
 
-    // Transactions for a category within a month/year
     @Query(
             "SELECT * FROM transactions " +
-                    "WHERE category = :category " +
-                    "AND amount < 0 " +
-                    "AND strftime('%Y', timestamp / 1000, 'unixepoch') = :year " +
-                    "AND strftime('%m', timestamp / 1000, 'unixepoch') = :month " +
+                    "WHERE category = :category AND amount < 0 " +
+                    "ORDER BY timestamp DESC"
+    )
+    LiveData<List<Transaction>> getTransactionsByCategory(String category);
+
+    @Query(
+            "SELECT * FROM transactions " +
+                    "WHERE category = :category AND amount < 0 " +
+                    "AND strftime('%Y', timestamp/1000, 'unixepoch', 'localtime') = :year " +
+                    "AND strftime('%m', timestamp/1000, 'unixepoch', 'localtime') = :month " +
                     "ORDER BY timestamp DESC"
     )
     LiveData<List<Transaction>> getTransactionsByCategoryAndMonth(
-            String category,
-            String year,
-            String month
+            String category, String year, String month
     );
 
-    @Query(
-            "SELECT * FROM transactions " +
-                    "ORDER BY timestamp DESC"
-    )
-    LiveData<List<Transaction>> getAllTransactionsOrdered();
-
-    
     /* ---------------------------------------------------
-     * RESULT HOLDER (MPAndroidChart)
+     * SINGLE-CATEGORY TREND (LEGACY)
      * --------------------------------------------------- */
 
-    // Simple POJO for aggregated results
+    @Query(
+            "SELECT strftime('%m', timestamp/1000, 'unixepoch', 'localtime') AS period, " +
+                    "SUM(amount) AS total " +
+                    "FROM transactions " +
+                    "WHERE category = :category AND amount < 0 " +
+                    "AND strftime('%Y', timestamp/1000, 'unixepoch', 'localtime') = :year " +
+                    "GROUP BY period " +
+                    "ORDER BY period"
+    )
+    LiveData<List<PeriodTotal>> getCategoryTrendsByYear(String category, String year);
+
+    /* ---------------------------------------------------
+     * MULTI-CATEGORY TIME-SERIES (FOR LINE CHART)
+     * --------------------------------------------------- */
+
+    // DAILY timeline
+    @Query(
+            "SELECT " +
+                    "strftime('%Y-%m-%d', timestamp/1000, 'unixepoch', 'localtime') AS period, " +
+                    "category, " +
+                    "SUM(amount) AS total " +
+                    "FROM transactions " +
+                    "WHERE amount < 0 AND timestamp >= :since " +
+                    "GROUP BY period, category " +
+                    "ORDER BY period ASC"
+    )
+    LiveData<List<TrendPoint>> getDailyTrends(long since);
+
+    // MONTHLY timeline
+    @Query(
+            "SELECT " +
+                    "strftime('%Y-%m', timestamp/1000, 'unixepoch', 'localtime') AS period, " +
+                    "category, " +
+                    "SUM(amount) AS total " +
+                    "FROM transactions " +
+                    "WHERE amount < 0 AND timestamp >= :since " +
+                    "GROUP BY period, category " +
+                    "ORDER BY period ASC"
+    )
+    LiveData<List<TrendPoint>> getMonthlyTrends(long since);
+
+    // YEARLY timeline
+    @Query(
+            "SELECT " +
+                    "strftime('%Y', timestamp/1000, 'unixepoch', 'localtime') AS period, " +
+                    "category, " +
+                    "SUM(amount) AS total " +
+                    "FROM transactions " +
+                    "WHERE amount < 0 AND timestamp >= :since " +
+                    "GROUP BY period, category " +
+                    "ORDER BY period ASC"
+    )
+    LiveData<List<TrendPoint>> getYearlyTrends(long since);
+
+    /* ---------------------------------------------------
+     * RESULT HOLDERS
+     * --------------------------------------------------- */
+
     class CategoryTotal {
+        public String category;
+        public double total;
+    }
+
+    class PeriodTotal {
+        public String period;
+        public double total;
+    }
+
+    class TrendPoint {
+        public String period;   // 2025-01-05, 2025-01, or 2025
         public String category;
         public double total;
     }

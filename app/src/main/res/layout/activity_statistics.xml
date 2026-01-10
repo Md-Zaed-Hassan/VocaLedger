@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
+<LinearLayout
     android:paddingTop="?attr/actionBarSize"
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     android:background="?attr/android:colorBackground"
     android:fitsSystemWindows="true"
     tools:context=".StatisticsActivity">
@@ -33,7 +34,6 @@
         android:id="@+id/toggle_group"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@id/appBarLayout"
         android:layout_margin="16dp"
         android:orientation="horizontal"
         android:gravity="center">
@@ -66,49 +66,76 @@
         android:id="@+id/chart_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/toggle_group"
-        android:layout_centerHorizontal="true"
+        android:layout_gravity="center_horizontal"
         android:layout_marginTop="8dp"
-        android:text="Monthly Expense Breakdown"
+        android:text="Expense Breakdown"
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <!-- Year Selector -->
-    <Spinner
-        android:id="@+id/yearSpinner"
+
+    <!-- Charts and Ranking Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal"
+        android:layout_margin="8dp">
+
+        <!-- Pie Chart -->
+        <LinearLayout
+            android:id="@+id/chartContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_margin="16dp">
+
+            <com.github.mikephil.charting.charts.PieChart
+                android:id="@+id/pie_chart"
+                android:layout_width="match_parent"
+                android:layout_height="260dp" />
+
+        </LinearLayout>
+
+
+        <!-- Category Ranking List -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/categoryRankingList"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:padding="8dp" />
+    </LinearLayout>
+
+    <!-- Trends Chart Title -->
+    <TextView
+        android:id="@+id/trendsChartTitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/chart_title"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="8dp"
-        android:minHeight="48dp"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:spinnerMode="dropdown" />
+        android:layout_gravity="center_horizontal"
+        android:text="Category Trends"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
-
-    <!-- Pie Chart -->
-    <com.github.mikephil.charting.charts.PieChart
-        android:id="@+id/pie_chart"
+    <!-- Trends Chart (Line Chart for month-to-month) -->
+    <com.github.mikephil.charting.charts.LineChart
+        android:id="@+id/trendsChart"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_below="@id/yearSpinner"
-        android:layout_above="@id/total_expenses_text"
-        android:layout_margin="16dp" />
+        android:layout_height="200dp"
+        android:layout_margin="8dp"
+        android:visibility="visible" />
 
     <!-- Total Expenses -->
     <TextView
         android:id="@+id/total_expenses_text"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_centerHorizontal="true"
+        android:layout_gravity="center_horizontal"
         android:layout_marginBottom="16dp"
-        android:text="Total: $0.00"
         android:textSize="22sp"
         android:textStyle="bold"
         android:textColor="?attr/colorNegative"
-        android:visibility="gone"
+        android:visibility="visible"
         tools:visibility="visible" />
 
-</RelativeLayout>
+</LinearLayout>
