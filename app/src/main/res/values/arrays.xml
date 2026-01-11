@@ -1,14 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="financial_advice">
-        <item>Track your spending to see where your money goes.</item>
         <item>Create a budget and stick to it.</item>
-        <item>Set financial goals to motivate yourself.</item>
-        <item>Save for emergencies to avoid debt.</item>
+        <item>Pay yourself first by saving a portion of your income.</item>
+        <item>Build an emergency fund covering 3–6 months of expenses.</item>
         <item>Pay off high-interest debt as quickly as possible.</item>
-        <item>Invest in your future by saving for retirement.</item>
-        <item>Look for ways to increase your income.</item>
-        <item>Review your finances regularly.</item>
-        <item>Don\'t be afraid to ask for help from a financial advisor.</item>
+        <item>Automate your savings and investments.</item>
+        <item>Review your bank statements regularly for errors.</item>
+        <item>Set clear financial goals, both short-term and long-term.</item>
+        <item>Negotiate your salary and benefits.</item>
+        <item>Invest in your education and skills to increase earning potential.</item>
+        <item>Diversify your investments to manage risk.</item>
+        <item>Take full advantage of employer-sponsored retirement plans.</item>
+        <item>Avoid lifestyle inflation as your income increases.</item>
+        <item>Use credit cards wisely and pay the balance in full each month.</item>
+        <item>Cook at home more often to save on food expenses.</item>
+        <item>Track your spending to identify areas for improvement.</item>
+        <item>Unsubscribe from marketing emails to reduce impulse buys.</item>
+        <item>Before making a large purchase, wait 24 hours.</item>
+        <item>Shop around for major purchases and insurance.</item>
+        <item>Sell items you no longer need or use.</item>
+        <item>Start investing as early as possible to leverage compound interest.</item>
+        <item>Understand the fees associated with your bank accounts and investments.</item>
+        <item>Regularly review and rebalance your investment portfolio.</item>
+        <item>Have a will and an estate plan, regardless of your age.</item>
+        <item>Protect your assets with adequate insurance coverage.</item>
+        <item>Choose a low-cost index fund for long-term growth.</item>
+        <item>Don\'t try to time the market; stay invested for the long haul.</item>
+        <item>Learn the difference between needs and wants.</item>
+        <item>Use public transportation or carpool to save on fuel.</item>
+        <item>Cancel subscriptions and memberships you don’t use.</item>
+        <item>Set up automatic bill payments to avoid late fees.</item>
+        <item>Check your credit report annually and dispute any errors.</item>
+        <item>Create a plan to pay off your student loans.</item>
+        <item>Live below your means, not at or above them.</item>
+        <item>Discuss financial matters openly with your partner.</item>
+        <item>Educate yourself about personal finance and investing.</item>
+        <item>Use cashback and rewards programs to your advantage.</item>
+        <item>Plan for major life events, such as buying a home or having children.</item>
+        <item>Don\'t make emotional investment decisions.</item>
+        <item>Consider the long-term cost of ownership, not just the purchase price.</item>
+        <item>Start a side hustle for extra income.</item>
+        <item>Set a weekly or monthly “fun money” budget.</item>
+        <item>Refinance your mortgage if you can get a lower interest rate.</item>
+        <item>Don\'t borrow from your retirement savings.</item>
+        <item>Make a grocery list and stick to it.</item>
+        <item>Use the library for free books and entertainment.</item>
+        <item>Buy generic brands instead of name brands.</item>
+        <item>Increase your retirement contributions when you get a raise.</item>
+        <item>Understand your risk tolerance before investing.</item>
+        <item>Teach your children about money from an early age.</item>
+        <item>Stay disciplined and patient with your financial plan.</item>
     </string-array>
 </resources>

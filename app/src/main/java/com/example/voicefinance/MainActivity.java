@@ -3,6 +3,7 @@ package com.example.voicefinance;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
 import android.text.TextUtils;
@@ -26,6 +27,7 @@ import com.example.voicefinance.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -175,6 +177,8 @@ public class MainActivity extends AppCompatActivity {
         binding.statsButton.setOnClickListener(v -> 
                 startActivity(new Intent(this, StatisticsActivity.class)));
 
+        binding.adviceButton.setOnClickListener(v -> showAdviceDialog());
+
         binding.modeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             binding.manualEntryCard.setVisibility(isChecked ? View.VISIBLE : View.GONE);
             binding.micButton.setVisibility(isChecked ? View.GONE : View.VISIBLE);
@@ -270,6 +274,17 @@ public class MainActivity extends AppCompatActivity {
                     } catch (Exception ignored) {}
                 })
                 .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showAdviceDialog() {
+        String[] advice = getResources().getStringArray(R.array.financial_advice);
+        String randomAdvice = advice[new Random().nextInt(advice.length)];
+
+        new AlertDialog.Builder(this)
+                .setTitle("Financial Advice")
+                .setMessage(randomAdvice)
+                .setPositiveButton("OK", null)
                 .show();
     }
 
