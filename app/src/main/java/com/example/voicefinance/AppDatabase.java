@@ -13,13 +13,14 @@ import androidx.room.migration.Migration;
 import androidx.sqlite.db.SupportSQLiteDatabase;
 import androidx.annotation.NonNull;
 
-@Database(entities = {Transaction.class}, version = 3) // Now version 3
+@Database(entities = {Transaction.class, Budget.class}, version = 4)
+ // Now version 4
 public abstract class AppDatabase extends RoomDatabase {
-
     public abstract TransactionDao transactionDao();
-
+    public abstract BudgetDao budgetDao();
     private static volatile AppDatabase INSTANCE;
     private static final int NUMBER_OF_THREADS = 4;
+
     static final ExecutorService databaseWriteExecutor =
             Executors.newFixedThreadPool(NUMBER_OF_THREADS);
 
@@ -29,7 +30,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 if (INSTANCE == null) {
                     INSTANCE = Room.databaseBuilder(context.getApplicationContext(),
                                     AppDatabase.class, "transaction_database")
-                            .addMigrations(MIGRATION_2_3)
+                            .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                             .build();
                 }
             }
@@ -70,6 +71,19 @@ public abstract class AppDatabase extends RoomDatabase {
                         "ALTER TABLE transactions ADD COLUMN updated_at INTEGER"
                 );
             }
+        }
+    };
+    static final Migration MIGRATION_3_4 = new Migration(3,4) {
+        @Override
+        public void migrate(@NonNull SupportSQLiteDatabase db) {
+            db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS budget (" +
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                            "amount REAL NOT NULL," +
+                            "startDate INTEGER NOT NULL," +
+                            "endDate INTEGER NOT NULL," +
+                            "active INTEGER NOT NULL)"
+            );
         }
     };
 

@@ -1,14 +1,20 @@
 package com.example.voicefinance;
 
 import android.app.DatePickerDialog;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
+import androidx.appcompat.app.AlertDialog;
 import android.os.Bundle;
 import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.RadioGroup;
 
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.view.ViewCompat;
@@ -17,11 +23,8 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.voicefinance.databinding.ActivityHistoryBinding;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
 
 public class HistoryActivity extends AppCompatActivity {
 
@@ -347,8 +350,89 @@ public class HistoryActivity extends AppCompatActivity {
     // -----------------------------
     // EDIT / DELETE (UNCHANGED)
     // -----------------------------
-    private void showEditDialog(Transaction transaction) { /* unchanged */ }
-    private void confirmDelete(Transaction transaction) { /* unchanged */ }
+    private void showEditDialog(Transaction transaction) {
+
+        View view = getLayoutInflater().inflate(R.layout.dialog_edit_transaction, null);
+
+        EditText amountInput = view.findViewById(R.id.editAmount);
+        EditText labelInput = view.findViewById(R.id.editLabel);
+        Button dateButton = view.findViewById(R.id.dateButton);
+
+        amountInput.setText(String.valueOf(Math.abs(transaction.amount)));
+        labelInput.setText(transaction.label);
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(transaction.timestamp);
+
+        SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
+        dateButton.setText(sdf.format(cal.getTime()));
+
+        dateButton.setOnClickListener(v -> {
+            new DatePickerDialog(
+                    this,
+                    (picker, year, month, day) -> {
+                        cal.set(year, month, day);
+                        dateButton.setText(sdf.format(cal.getTime()));
+                    },
+                    cal.get(Calendar.YEAR),
+                    cal.get(Calendar.MONTH),
+                    cal.get(Calendar.DAY_OF_MONTH)
+            ).show();
+        });
+
+        new AlertDialog.Builder(this)
+                .setTitle("Edit Transaction")
+                .setView(view)
+                .setPositiveButton("Save", (d, w) -> {
+                    try {
+                        double newAmount = Double.parseDouble(amountInput.getText().toString());
+                        String newLabel = labelInput.getText().toString();
+
+                        if (transaction.amount < 0) {
+                            newAmount = -newAmount;
+                        }
+
+                        transaction.amount = newAmount;
+                        transaction.label = newLabel;
+                        transaction.category = newLabel;
+                        transaction.timestamp = cal.getTimeInMillis();
+                        transaction.updatedAt = System.currentTimeMillis();
+
+                        AppDatabase.databaseWriteExecutor.execute(() ->
+                                db.transactionDao().update(transaction)
+                        );
+
+                    } catch (Exception e) {
+                        Toast.makeText(this, "Invalid input", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+    private void confirmDelete(Transaction transaction) {
+
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Transaction")
+                .setMessage("Are you sure you want to delete this entry?")
+                .setPositiveButton("Delete", (d, w) -> {
+
+                    AppDatabase.databaseWriteExecutor.execute(() -> {
+                        db.transactionDao().delete(transaction);
+
+                        runOnUiThread(() ->
+                                Toast.makeText(
+                                        HistoryActivity.this,
+                                        "Transaction deleted",
+                                        Toast.LENGTH_SHORT
+                                ).show()
+                        );
+                    });
+
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
 
     // -----------------------------
     // SEARCH

@@ -67,7 +67,8 @@ public interface TransactionDao {
     @Query(
             "SELECT IFNULL(SUM(amount),0) FROM transactions " +
                     "WHERE amount < 0 " +
-                    "AND strftime('%Y-%m', timestamp/1000, 'unixepoch', 'localtime') = strftime('%Y-%m','now', 'localtime')"
+                    "AND strftime('%Y-%m', timestamp/1000, 'unixepoch', 'localtime') = " +
+                    "strftime('%Y-%m','now', 'localtime')"
     )
     LiveData<Double> getCurrentMonthExpense();
 
