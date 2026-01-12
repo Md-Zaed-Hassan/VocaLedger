@@ -1,34 +1,21 @@
 package com.example.voicefinance;
 
 import android.content.Context;
-import android.content.SharedPreferences;
+import androidx.lifecycle.LiveData;
 
 public class BudgetHelper {
 
-    private static final String PREFS = "BudgetPrefs";
-    private static final String KEY_MONTHLY_BUDGET = "monthly_budget";
-
-    // Save monthly budget
-    public static void setMonthlyBudget(Context context, double amount) {
-        SharedPreferences prefs =
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        prefs.edit()
-                .putFloat(KEY_MONTHLY_BUDGET, (float) amount)
-                .apply();
+    // Save new budget (only one can be active)
+    public static void saveBudget(Context ctx, double amount, long start, long end) {
+        AppDatabase.databaseWriteExecutor.execute(() -> {
+            BudgetDao dao = AppDatabase.getDatabase(ctx).budgetDao();
+            dao.deactivateAll();
+            dao.insert(new Budget(amount, start, end, true));
+        });
     }
 
-    // Get monthly budget
-    // RETURNS 0 IF NOT SET → FEATURE DISABLED
-    public static double getMonthlyBudget(Context context) {
-        SharedPreferences prefs =
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        return prefs.getFloat(KEY_MONTHLY_BUDGET, 0f);
-    }
-
-    // Clear budget (optional action)
-    public static void clearMonthlyBudget(Context context) {
-        SharedPreferences prefs =
-                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
-        prefs.edit().remove(KEY_MONTHLY_BUDGET).apply();
+    // Live active budget (UI safe)
+    public static LiveData<Budget> getActiveBudget(Context ctx) {
+        return AppDatabase.getDatabase(ctx).budgetDao().getActiveBudget();
     }
 }

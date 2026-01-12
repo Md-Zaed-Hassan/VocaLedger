@@ -6,7 +6,8 @@
 
     <EditText
         android:id="@+id/budgetAmount"
-        android:hint="Budget Amount"
+        android:autofillHints=""
+        android:hint="Budget amount"
         android:inputType="numberDecimal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"/>

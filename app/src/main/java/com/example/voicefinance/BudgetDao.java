@@ -20,8 +20,5 @@ public interface BudgetDao {
     @Query("SELECT * FROM budget WHERE active = 1 LIMIT 1")
     LiveData<Budget> getActiveBudget();
 
-    @Query("SELECT * FROM budget WHERE active = 1 LIMIT 1")
-    Budget getActiveBudgetSync();
-
 
 }

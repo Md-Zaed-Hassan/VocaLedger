@@ -1,5 +1,7 @@
 package com.example.voicefinance;
 
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -218,26 +220,34 @@ public class MainActivity extends AppCompatActivity {
 
     private void observeBudget() {
 
-        double budget = BudgetHelper.getMonthlyBudget(this);
-        if (budget <= 0) {
-            binding.budgetStatusText.setVisibility(View.GONE);
-            return;
-        }
+        BudgetHelper.getActiveBudget(this).observe(this, active -> {
 
-        db.transactionDao().getCurrentMonthExpense()
-                .observe(this, expense -> {
-                    if (expense == null) return;
-                    double used = Math.abs(expense);
-                    double percent = (used / budget) * 100;
+            if (active == null) {
+                binding.budgetStatusText.setVisibility(View.GONE);
+                return;
+            }
 
-                    binding.budgetStatusText.setVisibility(View.VISIBLE);
-                    if (percent >= 100)
-                        binding.budgetStatusText.setText("⚠ Budget exceeded");
-                    else
-                        binding.budgetStatusText.setText(String.format(Locale.getDefault(),
-                                "Budget usage: %.0f%%", percent));
-                });
+            db.transactionDao()
+                    .getExpenseBetween(active.startDate, active.endDate)
+                    .observe(this, spent -> {
+
+                        double used = Math.abs(spent == null ? 0 : spent);
+                        double remaining = active.amount - used;
+
+                        binding.budgetStatusText.setVisibility(View.VISIBLE);
+
+                        if (remaining <= 0) {
+                            binding.budgetStatusText.setText("⚠ Budget exceeded");
+                        } else {
+                            binding.budgetStatusText.setText(
+                                    "Remaining Budget: " +
+                                            CurrencyUtils.getCurrencyInstance().format(remaining)
+                            );
+                        }
+                    });
+        });
     }
+
 
     // ------------------------------ UI -----------------------------------
 
@@ -263,20 +273,51 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSetBudgetDialog() {
-        EditText e = new EditText(this);
+
+        View v = getLayoutInflater().inflate(R.layout.dialog_set_budget, null);
+
+        EditText amount = v.findViewById(R.id.budgetAmount);
+        Spinner spinner = v.findViewById(R.id.budgetDuration);
+
+        String[] durations = {"1 Week", "1 Month", "3 Months", "6 Months", "1 Year"};
+        spinner.setAdapter(new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_spinner_dropdown_item,
+                durations
+        ));
+
         new AlertDialog.Builder(this)
                 .setTitle("Set Budget")
-                .setView(e)
+                .setView(v)
                 .setPositiveButton("Save", (d, w) -> {
-                    try {
-                        BudgetHelper.setMonthlyBudget(this,
-                                Double.parseDouble(e.getText().toString()));
-                    } catch (Exception ignored) {}
+
+                    if (TextUtils.isEmpty(amount.getText())) {
+                        Toast.makeText(this, "Enter amount", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    double value = Double.parseDouble(amount.getText().toString());
+
+                    Calendar c = Calendar.getInstance();
+                    long start = c.getTimeInMillis();
+
+                    switch (spinner.getSelectedItemPosition()) {
+                        case 0: c.add(Calendar.DAY_OF_YEAR, 7); break;
+                        case 1: c.add(Calendar.MONTH, 1); break;
+                        case 2: c.add(Calendar.MONTH, 3); break;
+                        case 3: c.add(Calendar.MONTH, 6); break;
+                        default: c.add(Calendar.YEAR, 1); break;
+                    }
+
+                    long end = c.getTimeInMillis();
+
+                    BudgetHelper.saveBudget(this, value, start, end);
+
+                    Toast.makeText(this, "Budget saved", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
-
     private void showAdviceDialog() {
         String[] advice = getResources().getStringArray(R.array.financial_advice);
         String randomAdvice = advice[new Random().nextInt(advice.length)];

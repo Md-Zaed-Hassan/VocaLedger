@@ -152,6 +152,14 @@ public interface TransactionDao {
     )
     LiveData<List<TrendPoint>> getYearlyTrends(long since);
 
+    @Query(
+            "SELECT IFNULL(SUM(amount),0) FROM transactions " +
+                    "WHERE amount < 0 AND timestamp BETWEEN :start AND :end"
+    )
+    LiveData<Double> getExpenseBetween(long start, long end);
+
+
+
     /* ---------------------------------------------------
      * RESULT HOLDERS
      * --------------------------------------------------- */
